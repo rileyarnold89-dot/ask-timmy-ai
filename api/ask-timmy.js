@@ -1,4 +1,9 @@
 // api/ask-timmy.js
+import {
+  routeQuestion,
+  buildOutOfScopeReply,
+  buildProductSpecificAnswer
+} from "../data/question-router.js";
 
 import {
   PRODUCT_CATALOG,
@@ -66,9 +71,19 @@ export default async function handler(req, res) {
       });
     }
 
-    const intent = detectIntent(safeQuestion);
-    const acres = detectAcres(safeQuestion);
-    const region = detectRegion(safeQuestion);
+const route = routeQuestion(safeQuestion);
+const acres = detectAcres(safeQuestion);
+const region = detectRegion(safeQuestion);
+const intent = route.intent;
+
+if (!route.isDomainRelated) {
+  return res.status(200).json({
+    answer: buildOutOfScopeReply(safeQuestion),
+    products: [],
+    blogs: [],
+    acres: null
+  });
+}
 
     let products = [];
 
