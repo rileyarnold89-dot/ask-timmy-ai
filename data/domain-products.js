@@ -205,7 +205,7 @@ export const PRODUCT_CATALOG = {
     url: "https://domainoutdoor.com/products/milo",
     coveragePerUnit: 0.25,
     summary: "Annual grain sorghum/milo for food plus seasonal cover. Strong for late-season seed-head attraction, field edges, backwoods food/cover, and wildlife value. Not a permanent perennial bedding screen."
-  }
+  },
     "Dirty Bird": {
     type: "Food Plot / Habitat Seed",
     category: "warm-season-cover-food",
