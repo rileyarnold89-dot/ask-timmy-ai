@@ -107,7 +107,7 @@ export default async function handler(req, res) {
   } catch (err) {
     return res.status(200).json({
       answer:
-        "<p><strong>Timmy hit a rut.</strong> Try asking again with your state, acres, and what you’re trying to accomplish.</p>",
+        "<p><strong>Timmy hit a little rut.</strong> Try asking again with your state, acres, and what you’re trying to accomplish.</p>",
       products: [],
       blogs: [],
       acres: null
