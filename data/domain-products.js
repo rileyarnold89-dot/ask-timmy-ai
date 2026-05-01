@@ -206,6 +206,45 @@ export const PRODUCT_CATALOG = {
     coveragePerUnit: 0.25,
     summary: "Annual grain sorghum/milo for food plus seasonal cover. Strong for late-season seed-head attraction, field edges, backwoods food/cover, and wildlife value. Not a permanent perennial bedding screen."
   }
+    "Dirty Bird": {
+    type: "Food Plot / Habitat Seed",
+    category: "warm-season-cover-food",
+    tag: "Food + Cover",
+    handle: "dirty-bird",
+    url: "https://domainoutdoor.com/products/dirty-bird",
+    coveragePerUnit: 0.25,
+    summary: "Warm-season annual blend with millet, sorghum, sunflower, and soybeans. Built for food, cover, structure, birds, turkey, and deer movement."
+  },
+
+  "Japanese Millet": {
+    type: "Food Plot / Habitat Seed",
+    category: "warm-season-cover-food",
+    tag: "Food + Cover",
+    handle: "japanese-millet",
+    url: "https://domainoutdoor.com/products/japanese-millet",
+    coveragePerUnit: 0.25,
+    summary: "Warm-season annual millet that creates seasonal cover and seed-head food value for wildlife. Strong for wet or lower areas when conditions fit."
+  },
+
+  "Sunflower": {
+    type: "Food Plot / Habitat Seed",
+    category: "warm-season-cover-food",
+    tag: "Food + Cover",
+    handle: "sunflower",
+    url: "https://domainoutdoor.com/products/sunflower",
+    coveragePerUnit: 0.25,
+    summary: "Warm-season annual that provides structure, seed-head food value, and wildlife attraction. Best used as seasonal food and cover, not permanent bedding."
+  },
+
+  "Landing Strip": {
+    type: "Food Plot / Habitat Seed",
+    category: "warm-season-cover-food",
+    tag: "Food + Cover",
+    handle: "landing-strip",
+    url: "https://domainoutdoor.com/products/landing-strip",
+    coveragePerUnit: 0.25,
+    summary: "Millet and sorghum blend built for food and cover. Strong for waterfowl, upland birds, turkey, and deer where seasonal structure and seed production matter."
+  },
 };
 // -------------------------------
 // HABITAT PRODUCTS
@@ -365,7 +404,9 @@ Object.assign(PRODUCT_CATALOG, {
 export const isSeed = name => PRODUCT_CATALOG[name]?.type?.includes("Seed");
 export const isLiquid = name => PRODUCT_CATALOG[name]?.type === "Liquid";
 export const isHabitat = name => PRODUCT_CATALOG[name]?.type === "Habitat Seed";
-export const isFoodPlotSeed = name => PRODUCT_CATALOG[name]?.type === "Food Plot Seed";
+export const isFoodPlotSeed = name =>
+  PRODUCT_CATALOG[name]?.type === "Food Plot Seed" ||
+  PRODUCT_CATALOG[name]?.type === "Food Plot / Habitat Seed";
 
 // -------------------------------
 // NAME NORMALIZATION

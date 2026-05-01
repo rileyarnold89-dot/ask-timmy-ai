@@ -210,12 +210,17 @@ function getHabitatProducts(question = "") {
   const q = question.toLowerCase();
 
   if (
-    q.includes("milo") ||
-    q.includes("sorghum") ||
-    (q.includes("food") && q.includes("cover"))
-  ) {
-    return ["Milo", "RC Big Rock Switchgrass", "Big Bluestem"];
-  }
+  q.includes("food and cover") ||
+  q.includes("cover and food") ||
+  q.includes("bedding and food") ||
+  q.includes("food and bedding") ||
+  q.includes("bedding/food") ||
+  q.includes("screening/food") ||
+  q.includes("milo") ||
+  q.includes("sorghum")
+) {
+  return ["Milo", "Dirty Bird", "Japanese Millet", "Sunflower", "Landing Strip"];
+}
 
   if (
     q.includes("screen") ||
@@ -272,7 +277,7 @@ function buildAnswer({
   if (intent === "habitat") {
     return `
 <p><strong>Goal:</strong> It sounds like you’re trying to create cover, bedding, screening, concealment, or movement control.</p>
-<p><strong>Best Product Fit:</strong> I’d prioritize ${productLine}. Milo belongs in the conversation when you want seasonal cover plus seed-head food, but it is not a permanent perennial bedding screen.</p>
+<p><strong>Best Product Fit:</strong> I’d prioritize ${productLine}. These are annual food-and-cover options that can provide seasonal structure, seed-head food value, and wildlife attraction. If you want permanent bedding only, then switchgrass and native grasses become the better fit.</p>
 <p><strong>Timing:</strong> ${timingText}</p>
 <p><strong>Fertility:</strong> For permanent bedding and native grass habitat, focus first on seedbed prep, weed control, timing, and moisture. For Milo, a moderate at-plant fertility pass can help because it acts like a warm-season grain sorghum crop.</p>
 <p><strong>Next Step:</strong> Review the <a href="${LINKS.habitatProducts}" target="_blank">Habitat Products</a> page, or use the <a href="${LINKS.foodPlotSelector}" target="_blank">Food Plot Selector</a> if you also want a nearby food source.</p>
