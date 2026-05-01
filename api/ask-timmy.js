@@ -85,7 +85,14 @@ if (!route.isDomainRelated) {
   });
 }
 
-    let products = [];
+let products = [];
+
+if (
+  route.mentionedProducts.length > 0 &&
+  ["when_to_plant", "product_info", "quantity_help"].includes(route.questionType)
+) {
+  products = route.mentionedProducts;
+} else if (intent === "feed") {
 
     if (intent === "feed") {
       products = cleanFeedProducts(getFeedProducts(safeQuestion));
@@ -97,12 +104,25 @@ if (!route.isDomainRelated) {
       products = cleanFoodPlotProducts(getFoodPlotProducts(safeQuestion));
     }
 
-    const timingText = buildTimingText({
+if (
+  route.mentionedProducts.length > 0 &&
+  ["when_to_plant", "product_info", "quantity_help"].includes(route.questionType)
+) {
+  const productName = route.mentionedProducts[0];
+
+  return res.status(200).json({
+    answer: buildProductSpecificAnswer({
       question: safeQuestion,
+      productName,
       region,
-      intent,
-      productNames: products
-    });
+      timingText,
+      links: LINKS
+    }),
+    products: buildProductCards([productName], safeQuestion, acres),
+    blogs: [],
+    acres: acres || null
+  });
+}
 
     const answer = buildAnswer({
       question: safeQuestion,
