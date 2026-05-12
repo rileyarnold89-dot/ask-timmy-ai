@@ -311,14 +311,15 @@ function buildProductCards(products = [], question = "", acres = null) {
       const product = PRODUCT_CATALOG[name];
 
       const card = {
-        name,
-        type: product.type,
-        tag: product.tag,
-        handle: product.handle,
-        url: product.url,
-        coveragePerUnit: product.coveragePerUnit || 1,
-        recommendedQty: null
-      };
+  name,
+  type: product.type,
+  tag: product.tag,
+  handle: product.handle,
+  url: product.url,
+  image: product.image || product.imageUrl || product.imageUrlOverride || "",
+  coveragePerUnit: product.coveragePerUnit || 1,
+  recommendedQty: null
+};
 
       if (isLiquid(name) && acres) {
         const liquid = fertilityProgram[name];
