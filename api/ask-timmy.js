@@ -24,7 +24,8 @@ import {
 import {
   getFeedProducts,
   cleanFeedProducts,
-  buildFeedText
+  buildFeedText,
+  isFeedQuestion
 } from "../data/feed-logic.js";
 
 import {
@@ -72,7 +73,9 @@ export default async function handler(req, res) {
     const region = detectRegion(safeQuestion);
     const intent = route.intent;
 
-    if (!route.isDomainRelated) {
+    const feedQuestion = isFeedQuestion(safeQuestion);
+
+    if (!route.isDomainRelated && !feedQuestion) {
       return res.status(200).json({
         answer: buildOutOfScopeReply(safeQuestion),
         products: [],
@@ -88,7 +91,7 @@ export default async function handler(req, res) {
       ["when_to_plant", "product_info", "quantity_help"].includes(route.questionType)
     ) {
       products = route.mentionedProducts;
-    } else if (intent === "feed") {
+    } else if (intent === "feed" || feedQuestion) {
       products = cleanFeedProducts(getFeedProducts(safeQuestion));
     } else if (intent === "fertility") {
       products = inferFertilityProducts(safeQuestion);
@@ -254,11 +257,11 @@ function buildAnswer({
     .map(name => `<strong>${name}</strong>`)
     .join(", ");
 
-  if (intent === "feed") {
+  if (intent === "feed" || isFeedQuestion(question)) {
     return `
 <p><strong>Goal:</strong> It sounds like you’re looking for feed, mineral, or attractant help.</p>
-<p><strong>Best Product Fit:</strong> ${buildFeedText(products)}</p>
-<p><strong>Timing:</strong> Feed and mineral strategy depends on season, pressure, and local regulations. Use them where legal and where deer are already comfortable moving.</p>
+<p><strong>Best Product Fit:</strong></p>
+${buildFeedText({ question, products, region })}
 <p><strong>Fertility:</strong> Not needed for feed products.</p>
 <p><strong>Next Step:</strong> Use the <a href="${LINKS.dealerLocator}" target="_blank">Dealer Locator</a> to find Domain feed and mineral products near you.</p>
 `.trim();
