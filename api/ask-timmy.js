@@ -74,8 +74,9 @@ export default async function handler(req, res) {
     const intent = route.intent;
 
     const feedQuestion = isFeedQuestion(safeQuestion);
+    const plantingQuestion = isPlantingQuestion(safeQuestion);
 
-    if (!route.isDomainRelated && !feedQuestion) {
+    if (!route.isDomainRelated && !feedQuestion && !plantingQuestion) {
       return res.status(200).json({
         answer: buildOutOfScopeReply(safeQuestion),
         products: [],
@@ -91,6 +92,8 @@ export default async function handler(req, res) {
       ["when_to_plant", "product_info", "quantity_help"].includes(route.questionType)
     ) {
       products = route.mentionedProducts;
+    } else if (plantingQuestion) {
+      products = cleanFoodPlotProducts(getFoodPlotProducts(safeQuestion));
     } else if (intent === "feed" || feedQuestion) {
       products = cleanFeedProducts(getFeedProducts(safeQuestion));
     } else if (intent === "fertility") {
@@ -101,10 +104,12 @@ export default async function handler(req, res) {
       products = cleanFoodPlotProducts(getFoodPlotProducts(safeQuestion));
     }
 
+    const effectiveIntent = plantingQuestion ? "food_plot" : intent;
+
     const timingText = buildTimingText({
       question: safeQuestion,
       region,
-      intent,
+      intent: effectiveIntent,
       productNames: products
     });
 
@@ -130,7 +135,7 @@ export default async function handler(req, res) {
 
     const answer = buildAnswer({
       question: safeQuestion,
-      intent,
+      intent: effectiveIntent,
       products,
       acres,
       region,
@@ -160,6 +165,85 @@ function detectAcres(question = "") {
   const q = question.toLowerCase();
   const match = q.match(/(\d+(\.\d+)?)\s*(acre|acres|ac)/);
   return match ? Number(match[1]) : null;
+}
+
+function isPlantingQuestion(question = "") {
+  const q = question.toLowerCase();
+
+  const strongPlantingWords = [
+    "plant",
+    "planting",
+    "planted",
+    "seed",
+    "seeding",
+    "sow",
+    "sowing",
+    "broadcast",
+    "drill",
+    "no till",
+    "no-till",
+    "food plot",
+    "plot"
+  ];
+
+  const landAndSoilWords = [
+    "acre",
+    "acres",
+    "soil",
+    "clay",
+    "sandy",
+    "sand",
+    "loam",
+    "rocky",
+    "wet soil",
+    "dry soil",
+    "ph",
+    "sun",
+    "shade",
+    "full sun",
+    "partial shade",
+    "panhandle",
+    "field",
+    "ground",
+    "property"
+  ];
+
+  const explicitFeedWords = [
+    "feed",
+    "feeding",
+    "feeder",
+    "mineral",
+    "minerals",
+    "block",
+    "attractant",
+    "corn",
+    "bait",
+    "pre game",
+    "bad habit",
+    "stockpile",
+    "recharge"
+  ];
+
+  const hasStrongPlantingIntent = strongPlantingWords.some(word => q.includes(word));
+  const hasLandContext = landAndSoilWords.some(word => q.includes(word));
+  const hasExplicitFeedIntent = explicitFeedWords.some(word => q.includes(word));
+
+  /*
+    Planting override:
+    If someone says plant/seed/food plot/plot, Timmy should treat it as a seed/food plot question,
+    even if the sentence includes deer, turkey, wildlife, acres, or attraction language.
+    Only keep it in feed when the customer clearly asks for feed/mineral/block/attractant/corn.
+  */
+  if (hasStrongPlantingIntent && !hasExplicitFeedIntent) return true;
+
+  /*
+    Land-context fallback:
+    Example: "I need something on 120 acres in Oklahoma clay soil for deer and turkey."
+    Even without the word "plant," acres + soil + wildlife usually means seed/habitat, not feed.
+  */
+  if (hasLandContext && !hasExplicitFeedIntent) return true;
+
+  return false;
 }
 
 function inferFertilityProducts(question = "") {
@@ -213,17 +297,17 @@ function getHabitatProducts(question = "") {
   const q = question.toLowerCase();
 
   if (
-  q.includes("food and cover") ||
-  q.includes("cover and food") ||
-  q.includes("bedding and food") ||
-  q.includes("food and bedding") ||
-  q.includes("bedding/food") ||
-  q.includes("screening/food") ||
-  q.includes("milo") ||
-  q.includes("sorghum")
-) {
-  return ["Milo", "Dirty Bird", "Japanese Millet", "Sunflower", "Landing Strip"];
-}
+    q.includes("food and cover") ||
+    q.includes("cover and food") ||
+    q.includes("bedding and food") ||
+    q.includes("food and bedding") ||
+    q.includes("bedding/food") ||
+    q.includes("screening/food") ||
+    q.includes("milo") ||
+    q.includes("sorghum")
+  ) {
+    return ["Milo", "Dirty Bird", "Japanese Millet", "Sunflower", "Landing Strip"];
+  }
 
   if (
     q.includes("screen") ||
@@ -257,7 +341,7 @@ function buildAnswer({
     .map(name => `<strong>${name}</strong>`)
     .join(", ");
 
-  if (intent === "feed" || isFeedQuestion(question)) {
+  if (!isPlantingQuestion(question) && (intent === "feed" || isFeedQuestion(question))) {
     return `
 <p><strong>Goal:</strong> It sounds like you’re looking for feed, mineral, or attractant help.</p>
 <p><strong>Best Product Fit:</strong></p>
@@ -311,15 +395,15 @@ function buildProductCards(products = [], question = "", acres = null) {
       const product = PRODUCT_CATALOG[name];
 
       const card = {
-  name,
-  type: product.type,
-  tag: product.tag,
-  handle: product.handle,
-  url: product.url,
-  image: product.image || product.imageUrl || product.imageUrlOverride || "",
-  coveragePerUnit: product.coveragePerUnit || 1,
-  recommendedQty: null
-};
+        name,
+        type: product.type,
+        tag: product.tag,
+        handle: product.handle,
+        url: product.url,
+        image: product.image || product.imageUrl || product.imageUrlOverride || "",
+        coveragePerUnit: product.coveragePerUnit || 1,
+        recommendedQty: null
+      };
 
       if (isLiquid(name) && acres) {
         const liquid = fertilityProgram[name];
