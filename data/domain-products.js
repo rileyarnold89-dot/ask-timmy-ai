@@ -1,7 +1,8 @@
 // data/domain-products.js
 
 export const LINKS = {
-  propertyPlanner: "https://domainoutdoor.com/pages/feed-selector?view=property-planner",
+  propertyPlanner: "https://domainoutdoor.com/pages/property-planner",
+  askTimmy: "https://domainoutdoor.com/pages/ask-timmy",
   foodPlotSelector: "https://domainoutdoor.com/pages/selection-chart-app",
   plotEnhancing: "https://domainoutdoor.com/pages/plot-enhancing-app",
   plantingDate: "https://domainoutdoor.com/pages/planing-date-app",
@@ -206,7 +207,8 @@ export const PRODUCT_CATALOG = {
     coveragePerUnit: 0.25,
     summary: "Annual grain sorghum/milo for food plus seasonal cover. Strong for late-season seed-head attraction, field edges, backwoods food/cover, and wildlife value. Not a permanent perennial bedding screen."
   },
-    "Dirty Bird": {
+
+  "Dirty Bird": {
     type: "Food Plot / Habitat Seed",
     category: "warm-season-cover-food",
     tag: "Food + Cover",
@@ -244,8 +246,9 @@ export const PRODUCT_CATALOG = {
     url: "https://domainoutdoor.com/products/landing-strip",
     coveragePerUnit: 0.25,
     summary: "Millet and sorghum blend built for food and cover. Strong for waterfowl, upland birds, turkey, and deer where seasonal structure and seed production matter."
-  },
+  }
 };
+
 // -------------------------------
 // HABITAT PRODUCTS
 // -------------------------------
@@ -328,8 +331,8 @@ Object.assign(PRODUCT_CATALOG, {
     type: "Liquid",
     category: "fertility",
     tag: "25-0-0",
-    handle: "freight-train",
-    url: "https://domainoutdoor.com/cdn/shop/files/Freight_Train_1_Gallon_5000x.png?v=1762283972",
+    handle: "freight-train%E2%84%A2-25-0-0-liquid-fertilizer",
+    url: "https://domainoutdoor.com/products/freight-train%E2%84%A2-25-0-0-liquid-fertilizer",
     maxRate: 5
   },
 
@@ -337,8 +340,8 @@ Object.assign(PRODUCT_CATALOG, {
     type: "Liquid",
     category: "fertility",
     tag: "Foliar",
-    handle: "liquid-courage",
-    url: "https://domainoutdoor.com/products/liquid-courage",
+    handle: "liquid-courage-7-17-4-foliar-fertilizer",
+    url: "https://domainoutdoor.com/products/liquid-courage-7-17-4-foliar-fertilizer",
     maxRate: 1
   },
 
@@ -346,8 +349,8 @@ Object.assign(PRODUCT_CATALOG, {
     type: "Liquid",
     category: "fertility",
     tag: "Liquid Lime",
-    handle: "elbow-grease",
-    url: "https://domainoutdoor.com/products/elbow-grease",
+    handle: "elbow-grease%E2%84%A2-advanced-calcium",
+    url: "https://domainoutdoor.com/products/elbow-grease%E2%84%A2-advanced-calcium",
     maxRate: 3
   },
 
@@ -355,8 +358,8 @@ Object.assign(PRODUCT_CATALOG, {
     type: "Liquid",
     category: "fertility",
     tag: "Soil Conditioner",
-    handle: "dirty-deeds",
-    url: "https://domainoutdoor.com/products/dirty-deeds",
+    handle: "dirty-deeds%E2%84%A2-soil-conditioner",
+    url: "https://domainoutdoor.com/products/dirty-deeds%E2%84%A2-soil-conditioner",
     maxRate: 1
   }
 });
@@ -381,6 +384,15 @@ Object.assign(PRODUCT_CATALOG, {
     url: "https://domainoutdoor.com/products/stockpile"
   },
 
+  "Stockpile XL": {
+    type: "Feed",
+    category: "feed",
+    tag: "Block",
+    handle: "stockpile-xl",
+    url: "https://domainoutdoor.com/products/stockpile-xl",
+    summary: "Larger Stockpile attractant and nutrition block option for longer-lasting sites where legal."
+  },
+
   "Recharge": {
     type: "Feed",
     category: "feed",
@@ -395,6 +407,52 @@ Object.assign(PRODUCT_CATALOG, {
     tag: "Premium Feed",
     handle: "pre-game",
     url: "https://domainoutdoor.com/products/pre-game"
+  }
+});
+
+// -------------------------------
+// SOIL TEST / RESOURCE PRODUCTS
+// -------------------------------
+Object.assign(PRODUCT_CATALOG, {
+  "Comprehensive Food Plot Soil Test Kit": {
+    type: "Soil Test",
+    category: "soil-test",
+    tag: "Full Soil Test",
+    handle: "comprehensive-food-plot-soil-test-kit",
+    url: "https://domainoutdoor.com/products/comprehensive-food-plot-soil-test-kit",
+    coveragePerUnit: null,
+    summary: "Full food plot soil test kit for customers who want pH, phosphorus, potassium, and fertility information before planting.",
+    aliases: [
+      "comprehensive soil test",
+      "comprehensive soil test kit",
+      "soil test",
+      "soil test kit",
+      "soil testing kit",
+      "lab soil test",
+      "soil sample",
+      "test my soil",
+      "phosphorus test",
+      "potassium test"
+    ]
+  },
+
+  "DIY Instant pH Test Kit": {
+    type: "Soil Test",
+    category: "soil-test",
+    tag: "Instant pH Test",
+    handle: "diy-instant-ph-test-kit",
+    url: "https://domainoutdoor.com/products/diy-instant-ph-test-kit?variant=43413529264377",
+    coveragePerUnit: null,
+    summary: "Quick pH test kit for checking soil pH before planting a food plot.",
+    aliases: [
+      "ph test kit",
+      "p h test kit",
+      "instant ph",
+      "instant ph test",
+      "diy ph test",
+      "soil ph kit",
+      "instant soil test"
+    ]
   }
 });
 
@@ -415,7 +473,20 @@ export function normalizeProductName(name) {
   const map = {
     "milo": "Milo",
     "sorghum": "Milo",
-    "grain sorghum": "Milo"
+    "grain sorghum": "Milo",
+    "soil test": "Comprehensive Food Plot Soil Test Kit",
+    "soil test kit": "Comprehensive Food Plot Soil Test Kit",
+    "comprehensive soil test": "Comprehensive Food Plot Soil Test Kit",
+    "comprehensive soil test kit": "Comprehensive Food Plot Soil Test Kit",
+    "ph test": "DIY Instant pH Test Kit",
+    "ph test kit": "DIY Instant pH Test Kit",
+    "p h test kit": "DIY Instant pH Test Kit",
+    "instant ph test": "DIY Instant pH Test Kit",
+    "stockpile xl": "Stockpile XL",
+    "stockpile extra large": "Stockpile XL",
+    "pre-game": "Pre Game",
+    "pregame": "Pre Game",
+    "recharge mineral": "Recharge"
   };
 
   return map[name?.toLowerCase()] || name;
