@@ -9,7 +9,9 @@ const PLAN_TABLES = {
   fertility: "saved_fertility_plans",
   planting: "saved_planting_plans",
   food_plot: "saved_food_plot_plans",
-  food_plots: "saved_food_plot_plans"
+  food_plots: "saved_food_plot_plans",
+  timmy_answers: "saved_timmy_answers",
+  timmy: "saved_timmy_answers"
 };
 
 function setCors(res) {
@@ -138,9 +140,9 @@ function mapFertilityPlan(customerId, plan) {
     target_ph: cleanNumber(plan.targetPh || plan.target_ph),
     dry_goal: cleanText(plan.dryGoal || plan.dry_goal),
     total_liquid_gallons: cleanNumber(plan.totalGallons || plan.total_liquid_gallons),
-    starter_program: stripHtml(plan.starterHtml || plan.starter_program),
-    in_season_program: stripHtml(plan.inSeasonHtml || plan.in_season_program),
-    support_program: stripHtml(plan.supportHtml || plan.support_program),
+    starter_program: stripHtml(plan.starterHtml || plan.starter_program || plan.starterText),
+    in_season_program: stripHtml(plan.inSeasonHtml || plan.in_season_program || plan.inSeasonText),
+    support_program: stripHtml(plan.supportHtml || plan.support_program || plan.supportText),
     products: plan.products || {},
     full_plan: plan
   };
@@ -210,7 +212,8 @@ async function getAllPlans(customerId) {
     soil_tests: "saved_soil_tests",
     fertility: "saved_fertility_plans",
     planting: "saved_planting_plans",
-    food_plot: "saved_food_plot_plans"
+    food_plot: "saved_food_plot_plans",
+    timmy_answers: "saved_timmy_answers"
   };
 
   const result = {};
@@ -302,6 +305,13 @@ export default async function handler(req, res) {
         return res.status(400).json({
           ok: false,
           error: "Invalid plan type."
+        });
+      }
+
+      if (type === "timmy" || type === "timmy_answers") {
+        return res.status(400).json({
+          ok: false,
+          error: "Timmy answers should be saved through /api/timmy-log."
         });
       }
 
