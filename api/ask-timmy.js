@@ -52,33 +52,34 @@ const DOMAIN_SITE_TOOLS = {
       "The main hub for choosing what to plant, when to plant it, building a fertility plan, and asking Timmy for help."
   },
 
-  eConsult: {
-    name: "Domain Outdoor E-Consult",
-    keywords: [
-      "e consult",
-      "e-consult",
-      "econsult",
-      "e consultation",
-      "virtual consult",
-      "virtual consultation",
-      "land consult",
-      "land consultation",
-      "property consult",
-      "property consultation",
-      "domain consult",
-      "domain consultation",
-      "consult program",
-      "consulting program",
-      "talk to a land specialist",
-      "real person help",
-      "personal help",
-      "one on one help",
-      "one-on-one help"
-    ],
-    url: E_CONSULT_URL,
-    description:
-      "A virtual land consulting option for customers who want a Domain land specialist to personally review their property, food plot layout, access, stand/blind placement, and overall habitat strategy."
-  },
+eConsult: {
+  name: "Domain Outdoor E-Consult",
+  productName: "Domain Outdoor E-Consult",
+  keywords: [
+    "e consult",
+    "e-consult",
+    "econsult",
+    "e consultation",
+    "virtual consult",
+    "virtual consultation",
+    "land consult",
+    "land consultation",
+    "property consult",
+    "property consultation",
+    "domain consult",
+    "domain consultation",
+    "consult program",
+    "consulting program",
+    "talk to a land specialist",
+    "real person help",
+    "personal help",
+    "one on one help",
+    "one-on-one help"
+  ],
+  url: E_CONSULT_URL,
+  description:
+    "A virtual land consulting option for customers who want a Domain land specialist to personally review their property, food plot layout, access, stand/blind placement, and overall habitat strategy."
+},
 
   foodPlotSelector: {
     name: "Food Plot Selector",
@@ -815,11 +816,42 @@ function buildProductCards(products = [], question = "", acres = null) {
     acres: acres || 1
   });
 
+  function buildProductCards(products = [], question = "", acres = null) {
+  const fertilityProgram = buildFertilityProgram({
+    question,
+    productNames: products,
+    acres: acres || 1
+  });
+
   return [...new Set(products)]
-    .map(normalizeProductName)
-    .filter(name => PRODUCT_CATALOG[name])
+    .map(name => {
+      const normalizedName = normalizeProductName(name);
+
+      if (
+        normalizedName === "Domain Outdoor E-Consult" ||
+        name === "Domain Outdoor E-Consult"
+      ) {
+        return "Domain Outdoor E-Consult";
+      }
+
+      return normalizedName;
+    })
+    .filter(name => PRODUCT_CATALOG[name] || name === "Domain Outdoor E-Consult")
     .slice(0, 8)
     .map(name => {
+      if (name === "Domain Outdoor E-Consult") {
+        return {
+          name: "Domain Outdoor E-Consult",
+          type: "Property Planning",
+          tag: "Optional Hands-On Help",
+          handle: "domain-outdoor-e-consult-1",
+          url: E_CONSULT_URL,
+          image: "",
+          coveragePerUnit: 1,
+          recommendedQty: 1
+        };
+      }
+
       const product = PRODUCT_CATALOG[name];
 
       const card = {
@@ -851,4 +883,5 @@ function buildProductCards(products = [], question = "", acres = null) {
 
       return card;
     });
+}
 }
