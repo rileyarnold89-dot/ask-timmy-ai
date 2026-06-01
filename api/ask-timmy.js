@@ -34,6 +34,9 @@ import {
   buildProductSpecificAnswer
 } from "../data/question-router.js";
 
+const E_CONSULT_URL = "https://domainoutdoor.com/products/domain-outdoor-e-consult-1?variant=44859748385017";
+const PROPERTY_PLANNER_URL = "https://domainoutdoor.com/pages/property-planner";
+
 const DOMAIN_SITE_TOOLS = {
   propertyPlanner: {
     name: "Domain Property Planner",
@@ -44,9 +47,37 @@ const DOMAIN_SITE_TOOLS = {
       "start planning",
       "planner"
     ],
-    url: "https://domainoutdoor.com/pages/property-planner",
+    url: PROPERTY_PLANNER_URL,
     description:
       "The main hub for choosing what to plant, when to plant it, building a fertility plan, and asking Timmy for help."
+  },
+
+  eConsult: {
+    name: "Domain Outdoor E-Consult",
+    keywords: [
+      "e consult",
+      "e-consult",
+      "econsult",
+      "e consultation",
+      "virtual consult",
+      "virtual consultation",
+      "land consult",
+      "land consultation",
+      "property consult",
+      "property consultation",
+      "domain consult",
+      "domain consultation",
+      "consult program",
+      "consulting program",
+      "talk to a land specialist",
+      "real person help",
+      "personal help",
+      "one on one help",
+      "one-on-one help"
+    ],
+    url: E_CONSULT_URL,
+    description:
+      "A virtual land consulting option for customers who want a Domain land specialist to personally review their property, food plot layout, access, stand/blind placement, and overall habitat strategy."
   },
 
   foodPlotSelector: {
@@ -199,7 +230,7 @@ export default async function handler(req, res) {
 
     if (!safeQuestion) {
       return res.status(200).json({
-        answer: "<p>Ask me about food plots, planting dates, fertilizer, feed, habitat, soil, or finding a Domain dealer.</p>",
+        answer: "<p>Ask me about food plots, planting dates, fertilizer, feed, habitat, soil, property planning, or finding a Domain dealer.</p>",
         products: [],
         blogs: [],
         acres: null
@@ -210,7 +241,7 @@ export default async function handler(req, res) {
       Website search / product finder mode.
       This runs BEFORE the out-of-scope / “Can’t trick me” logic.
       That way short product-search messages like “soil test kit”
-      or “where is the pH test kit” are treated as valid Domain requests.
+      or “where is the E-Consult” are treated as valid Domain requests.
     */
     const websiteSearchMatch = findWebsiteSearchMatch(safeQuestion);
 
@@ -232,8 +263,9 @@ export default async function handler(req, res) {
 
     const feedQuestion = isFeedQuestion(safeQuestion);
     const plantingQuestion = isPlantingQuestion(safeQuestion);
+    const propertyPlanningQuestion = isPropertyPlanningDeepDive(safeQuestion);
 
-    if (!route.isDomainRelated && !feedQuestion && !plantingQuestion) {
+    if (!route.isDomainRelated && !feedQuestion && !plantingQuestion && !propertyPlanningQuestion) {
       return res.status(200).json({
         answer: buildOutOfScopeReply(safeQuestion),
         products: [],
@@ -255,7 +287,7 @@ export default async function handler(req, res) {
       products = cleanFeedProducts(getFeedProducts(safeQuestion));
     } else if (intent === "fertility") {
       products = inferFertilityProducts(safeQuestion);
-    } else if (intent === "habitat") {
+    } else if (intent === "habitat" || propertyPlanningQuestion) {
       products = getHabitatProducts(safeQuestion);
     } else {
       products = cleanFoodPlotProducts(getFoodPlotProducts(safeQuestion));
@@ -290,7 +322,7 @@ export default async function handler(req, res) {
       });
     }
 
-    const answer = buildAnswer({
+    let answer = buildAnswer({
       question: safeQuestion,
       intent: effectiveIntent,
       products,
@@ -298,6 +330,15 @@ export default async function handler(req, res) {
       region,
       timingText
     });
+
+    /*
+      Soft E-Consult escalation.
+      Timmy still helps first. The Property Planner is positioned as the best free next step.
+      The E-Consult is only shown as an optional hands-on path for deeper property-specific questions.
+    */
+    if (propertyPlanningQuestion) {
+      answer += "\n" + buildSoftEConsultNudge();
+    }
 
     return res.status(200).json({
       answer,
@@ -452,7 +493,10 @@ function buildWebsiteSearchResponse(match) {
 
   const n = normalizeSearchText(itemName);
 
-  if (n.includes("soil test") || n.includes("ph test")) {
+  if (n.includes("e consult") || n.includes("e-consult") || n.includes("econsult")) {
+    extra = `
+<p>Timmy can help with quick food plot, feed, fertilizer, and habitat questions right here. The <a href="${PROPERTY_PLANNER_URL}" target="_blank">Domain Property Planner</a> is the best free next step if you want to start mapping out a plan yourself. The E-Consult is there if you want a real Domain land specialist to personally review the property with you.</p>`;
+  } else if (n.includes("soil test") || n.includes("ph test")) {
     extra = `
 <p>If you're using those results for a food plot, plug your pH, phosphorus, potassium, and acreage into the <a href="${LINKS.plotEnhancing || "https://domainoutdoor.com/pages/plot-enhancing-app"}" target="_blank">Plot Enhancing App</a> to build a fertility plan.</p>`;
   } else if (n.includes("planting")) {
@@ -554,6 +598,80 @@ function isPlantingQuestion(question = "") {
   if (hasLandContext && !hasExplicitFeedIntent) return true;
 
   return false;
+}
+
+function isPropertyPlanningDeepDive(question = "") {
+  const q = normalizeSearchText(question);
+
+  const deepDiveWords = [
+    "property layout",
+    "whole property",
+    "entire property",
+    "farm layout",
+    "land layout",
+    "map my property",
+    "map out my property",
+    "look at my map",
+    "look at my property",
+    "review my property",
+    "review my land",
+    "onx",
+    "huntstand",
+    "stand placement",
+    "blind placement",
+    "where should i put a stand",
+    "where should i put stands",
+    "where should i put a blind",
+    "where should i put blinds",
+    "where should i put my food plot",
+    "where should i put my food plots",
+    "where do i put a stand",
+    "where do i put stands",
+    "where do i put a blind",
+    "where do i put blinds",
+    "where do i put food plots",
+    "how should i set up my property",
+    "how should i set up my land",
+    "how should i lay out my property",
+    "how should i lay out my land",
+    "entry route",
+    "exit route",
+    "access route",
+    "access routes",
+    "deer movement",
+    "movement plan",
+    "hunting access",
+    "bedding area",
+    "sanctuary",
+    "tsi",
+    "timber stand improvement",
+    "hinge cut",
+    "thermal cover",
+    "complete plan",
+    "full plan",
+    "master plan",
+    "game plan"
+  ];
+
+  const questionHasDeepDivePhrase = deepDiveWords.some(word => q.includes(word));
+
+  const asksForPersonalReview =
+    q.includes("can you help me with my property") ||
+    q.includes("can you help with my property") ||
+    q.includes("can you make me a plan") ||
+    q.includes("can you build me a plan") ||
+    q.includes("i want a plan for my property") ||
+    q.includes("i need a plan for my property") ||
+    q.includes("i need help planning my property");
+
+  return questionHasDeepDivePhrase || asksForPersonalReview;
+}
+
+function buildSoftEConsultNudge() {
+  return `
+<p><strong>Want a more property-specific plan?</strong> Timmy can help point you in the right direction here. For a more complete self-serve layout, the <a href="${PROPERTY_PLANNER_URL}" target="_blank">Domain Property Planner</a> is the best free next step.</p>
+<p>If you want a real person from Domain to personally review your property, food plot layout, stand/blind placement, access, and deer movement strategy, the <a href="${E_CONSULT_URL}" target="_blank">E-Consult program</a> is available as the hands-on option.</p>
+`.trim();
 }
 
 function inferFertilityProducts(question = "") {
