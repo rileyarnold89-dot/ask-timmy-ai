@@ -50,7 +50,11 @@ export default async function handler(req, res) {
 
     const log = {
       shopify_customer_id: customer.customerId || cleanText(body.shopify_customer_id),
-      property_id: cleanText(body.property_id),
+      property_id: cleanText(body.property_id || body.propertyId),
+      property_name: cleanText(body.property_name || body.propertyName),
+      plot_name: cleanText(body.plot_name || body.plotName),
+      answer_title: cleanText(body.answer_title || body.answerTitle || body.plan_name || body.planName),
+      notes: cleanText(body.notes),
       question: cleanText(body.question) || "Unknown question",
       answer: cleanText(body.answer),
       intent: cleanText(body.intent),

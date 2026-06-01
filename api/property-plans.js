@@ -3,10 +3,13 @@ import { getShopifyCustomerContext } from "../lib/shopify-proxy-auth.js";
 
 const PLAN_TABLES = {
   properties: "saved_properties",
+  property: "saved_properties",
   soil_tests: "saved_soil_tests",
+  soil_test: "saved_soil_tests",
   fertility: "saved_fertility_plans",
   planting: "saved_planting_plans",
-  food_plot: "saved_food_plot_plans"
+  food_plot: "saved_food_plot_plans",
+  food_plots: "saved_food_plot_plans"
 };
 
 function setCors(res) {
@@ -50,50 +53,82 @@ function getPlanType(req, body = {}) {
   return cleanText(req.query?.type || body.type || "fertility");
 }
 
+function getPlanPayload(body) {
+  return body.plan && typeof body.plan === "object" ? body.plan : body;
+}
+
+function getNameFields(plan) {
+  return {
+    property_name: cleanText(plan.property_name || plan.propertyName),
+    plot_name: cleanText(plan.plot_name || plan.plotName),
+    notes: cleanText(plan.notes || plan.plan_notes || plan.planNotes)
+  };
+}
+
+function buildPlanName(plan, fallback) {
+  const propertyName = cleanText(plan.property_name || plan.propertyName);
+  const plotName = cleanText(plan.plot_name || plan.plotName);
+  const planName = cleanText(plan.plan_name || plan.planName);
+
+  if (planName) return planName;
+
+  const parts = [propertyName, plotName, fallback].filter(Boolean);
+  return parts.length ? parts.join(" — ") : fallback;
+}
+
 function mapPropertyPlan(customerId, plan) {
   return {
     shopify_customer_id: customerId,
-    property_name: cleanText(plan.property_name || plan.name || "My Property") || "My Property",
+    property_name: cleanText(plan.property_name || plan.propertyName || plan.name || "My Property") || "My Property",
     state: cleanText(plan.state),
     zip: cleanText(plan.zip),
     county: cleanText(plan.county),
     acres: cleanNumber(plan.acres),
-    food_plot_acres: cleanNumber(plan.food_plot_acres),
+    food_plot_acres: cleanNumber(plan.food_plot_acres || plan.foodPlotAcres),
     equipment: cleanText(plan.equipment),
-    soil_type: cleanText(plan.soil_type),
+    soil_type: cleanText(plan.soil_type || plan.soilType),
     sunlight: cleanText(plan.sunlight),
     moisture: cleanText(plan.moisture),
-    deer_goals: cleanText(plan.deer_goals || plan.goal),
-    property_notes: cleanText(plan.property_notes || plan.notes),
+    deer_goals: cleanText(plan.deer_goals || plan.deerGoals || plan.goal),
+    property_notes: cleanText(plan.property_notes || plan.propertyNotes || plan.notes),
     plan_data: plan
   };
 }
 
 function mapSoilTest(customerId, plan) {
+  const names = getNameFields(plan);
+
   return {
     shopify_customer_id: customerId,
-    property_id: cleanText(plan.property_id),
-    test_name: cleanText(plan.test_name || plan.name || "Soil Test") || "Soil Test",
-    test_date: cleanText(plan.test_date),
-    crop_or_plot: cleanText(plan.crop_or_plot || plan.crop),
+    property_id: cleanText(plan.property_id || plan.propertyId),
+    property_name: names.property_name,
+    plot_name: names.plot_name,
+    test_name: cleanText(plan.test_name || plan.testName || plan.name || "Soil Test") || "Soil Test",
+    test_date: cleanText(plan.test_date || plan.testDate),
+    crop_or_plot: cleanText(plan.crop_or_plot || plan.cropOrPlot || plan.crop),
     soil_ph: cleanNumber(plan.soil_ph || plan.soilPh),
-    phosphorus_ppm: cleanNumber(plan.phosphorus_ppm || plan.soilP),
-    potassium_ppm: cleanNumber(plan.potassium_ppm || plan.soilK),
-    organic_matter_percent: cleanNumber(plan.organic_matter_percent || plan.organicMatter),
-    nitrogen_ppm: cleanNumber(plan.nitrogen_ppm),
-    calcium_ppm: cleanNumber(plan.calcium_ppm),
-    magnesium_ppm: cleanNumber(plan.magnesium_ppm),
-    notes: cleanText(plan.notes),
+    phosphorus_ppm: cleanNumber(plan.phosphorus_ppm || plan.phosphorusPpm || plan.soilP),
+    potassium_ppm: cleanNumber(plan.potassium_ppm || plan.potassiumPpm || plan.soilK),
+    organic_matter_percent: cleanNumber(plan.organic_matter_percent || plan.organicMatterPercent || plan.organicMatter),
+    nitrogen_ppm: cleanNumber(plan.nitrogen_ppm || plan.nitrogenPpm),
+    calcium_ppm: cleanNumber(plan.calcium_ppm || plan.calciumPpm),
+    magnesium_ppm: cleanNumber(plan.magnesium_ppm || plan.magnesiumPpm),
+    notes: names.notes,
     raw_data: plan
   };
 }
 
 function mapFertilityPlan(customerId, plan) {
+  const names = getNameFields(plan);
+
   return {
     shopify_customer_id: customerId,
-    property_id: cleanText(plan.property_id),
-    soil_test_id: cleanText(plan.soil_test_id),
-    plan_name: cleanText(plan.plan_name || `${plan.crop || "Fertility"} Plan`) || "Fertility Plan",
+    property_id: cleanText(plan.property_id || plan.propertyId),
+    soil_test_id: cleanText(plan.soil_test_id || plan.soilTestId),
+    property_name: names.property_name,
+    plot_name: names.plot_name,
+    notes: names.notes,
+    plan_name: buildPlanName(plan, `${plan.crop || plan.selectedLabel || "Fertility"} Plan`),
     crop: cleanText(plan.crop || plan.selectedLabel),
     acres: cleanNumber(plan.acres),
     soil_ph: cleanNumber(plan.soilPh || plan.soil_ph),
@@ -112,16 +147,21 @@ function mapFertilityPlan(customerId, plan) {
 }
 
 function mapPlantingPlan(customerId, plan) {
+  const names = getNameFields(plan);
+
   return {
     shopify_customer_id: customerId,
-    property_id: cleanText(plan.property_id),
-    plan_name: cleanText(plan.plan_name || `${plan.product_name || plan.product || "Planting"} Plan`) || "Planting Plan",
+    property_id: cleanText(plan.property_id || plan.propertyId),
+    property_name: names.property_name,
+    plot_name: names.plot_name,
+    notes: names.notes,
+    plan_name: buildPlanName(plan, `${plan.product_name || plan.product || "Planting"} Plan`),
     product_name: cleanText(plan.product_name || plan.product),
     state: cleanText(plan.state),
     zip: cleanText(plan.zip),
     region: cleanText(plan.region),
     acres: cleanNumber(plan.acres),
-    planting_window: cleanText(plan.planting_window || plan.window),
+    planting_window: cleanText(plan.planting_window || plan.plantingWindow || plan.window),
     best_dates: Array.isArray(plan.best_dates) ? plan.best_dates : Array.isArray(plan.bestDates) ? plan.bestDates : [],
     moisture_notes: cleanText(plan.moisture_notes || plan.moistureNotes),
     timing_score: cleanText(plan.timing_score || plan.timingScore),
@@ -130,15 +170,20 @@ function mapPlantingPlan(customerId, plan) {
 }
 
 function mapFoodPlotPlan(customerId, plan) {
+  const names = getNameFields(plan);
+
   return {
     shopify_customer_id: customerId,
-    property_id: cleanText(plan.property_id),
-    plan_name: cleanText(plan.plan_name || "Food Plot Plan") || "Food Plot Plan",
+    property_id: cleanText(plan.property_id || plan.propertyId),
+    property_name: names.property_name,
+    plot_name: names.plot_name,
+    notes: names.notes,
+    plan_name: buildPlanName(plan, "Food Plot Plan"),
     goal: cleanText(plan.goal),
     state: cleanText(plan.state),
     zip: cleanText(plan.zip),
     acres: cleanNumber(plan.acres),
-    soil_condition: cleanText(plan.soil_condition || plan.soil),
+    soil_condition: cleanText(plan.soil_condition || plan.soilCondition || plan.soil),
     sunlight: cleanText(plan.sunlight),
     equipment: cleanText(plan.equipment),
     recommendations: Array.isArray(plan.recommendations) ? plan.recommendations : [],
@@ -147,18 +192,30 @@ function mapFoodPlotPlan(customerId, plan) {
 }
 
 function mapPlan(customerId, type, plan) {
-  if (type === "properties") return mapPropertyPlan(customerId, plan);
-  if (type === "soil_tests") return mapSoilTest(customerId, plan);
+  if (type === "properties" || type === "property") return mapPropertyPlan(customerId, plan);
+  if (type === "soil_tests" || type === "soil_test") return mapSoilTest(customerId, plan);
   if (type === "fertility") return mapFertilityPlan(customerId, plan);
   if (type === "planting") return mapPlantingPlan(customerId, plan);
-  if (type === "food_plot") return mapFoodPlotPlan(customerId, plan);
+  if (type === "food_plot" || type === "food_plots") return mapFoodPlotPlan(customerId, plan);
   return null;
 }
 
+function tableForType(type) {
+  return PLAN_TABLES[type] || null;
+}
+
 async function getAllPlans(customerId) {
+  const readableTypes = {
+    properties: "saved_properties",
+    soil_tests: "saved_soil_tests",
+    fertility: "saved_fertility_plans",
+    planting: "saved_planting_plans",
+    food_plot: "saved_food_plot_plans"
+  };
+
   const result = {};
 
-  for (const [type, table] of Object.entries(PLAN_TABLES)) {
+  for (const [type, table] of Object.entries(readableTypes)) {
     const { data, error } = await supabaseAdmin
       .from(table)
       .select("*")
@@ -206,7 +263,7 @@ export default async function handler(req, res) {
         });
       }
 
-      const table = PLAN_TABLES[type];
+      const table = tableForType(type);
 
       if (!table) {
         return res.status(400).json({
@@ -239,7 +296,7 @@ export default async function handler(req, res) {
     if (req.method === "POST") {
       const body = getBody(req);
       const type = getPlanType(req, body);
-      const table = PLAN_TABLES[type];
+      const table = tableForType(type);
 
       if (!table) {
         return res.status(400).json({
@@ -248,7 +305,7 @@ export default async function handler(req, res) {
         });
       }
 
-      const plan = body.plan || body;
+      const plan = getPlanPayload(body);
       const mappedPlan = mapPlan(customer.customerId, type, plan);
 
       if (!mappedPlan) {
@@ -280,7 +337,7 @@ export default async function handler(req, res) {
 
     if (req.method === "DELETE") {
       const type = getPlanType(req);
-      const table = PLAN_TABLES[type];
+      const table = tableForType(type);
       const id = cleanText(req.query?.id);
 
       if (!table) {
