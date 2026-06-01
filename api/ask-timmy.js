@@ -34,9 +34,6 @@ import {
   buildProductSpecificAnswer
 } from "../data/question-router.js";
 
-const E_CONSULT_URL = "https://domainoutdoor.com/products/domain-outdoor-e-consult-1?variant=44859748385017";
-const PROPERTY_PLANNER_URL = "https://domainoutdoor.com/pages/property-planner";
-
 const DOMAIN_SITE_TOOLS = {
   propertyPlanner: {
     name: "Domain Property Planner",
@@ -47,38 +44,9 @@ const DOMAIN_SITE_TOOLS = {
       "start planning",
       "planner"
     ],
-    url: PROPERTY_PLANNER_URL,
+    url: "https://domainoutdoor.com/pages/property-planner",
     description:
       "The main hub for choosing what to plant, when to plant it, building a fertility plan, and asking Timmy for help."
-  },
-
-  eConsult: {
-    name: "Domain Outdoor E-Consult",
-    productName: "Domain Outdoor E-Consult",
-    keywords: [
-      "e consult",
-      "e-consult",
-      "econsult",
-      "e consultation",
-      "virtual consult",
-      "virtual consultation",
-      "land consult",
-      "land consultation",
-      "property consult",
-      "property consultation",
-      "domain consult",
-      "domain consultation",
-      "consult program",
-      "consulting program",
-      "talk to a land specialist",
-      "real person help",
-      "personal help",
-      "one on one help",
-      "one-on-one help"
-    ],
-    url: E_CONSULT_URL,
-    description:
-      "A virtual land consulting option for customers who want a Domain land specialist to personally review their property, food plot layout, access, stand/blind placement, and overall habitat strategy."
   },
 
   foodPlotSelector: {
@@ -231,28 +199,43 @@ export default async function handler(req, res) {
 
     if (!safeQuestion) {
       return res.status(200).json({
-        answer: "<p>Ask me about food plots, planting dates, fertilizer, feed, habitat, soil, property planning, or finding a Domain dealer.</p>",
+        answer: "<p>Ask me about food plots, planting dates, fertilizer, feed, habitat, soil, or finding a Domain dealer.</p>",
         products: [],
         blogs: [],
         acres: null
       });
     }
 
-    /*
-      Website search / product finder mode.
-      This runs BEFORE the out-of-scope / “Can’t trick me” logic.
-      That way short product-search messages like “soil test kit”
-      or “where is the E-Consult” are treated as valid Domain requests.
-    */
     const websiteSearchMatch = findWebsiteSearchMatch(safeQuestion);
 
     if (websiteSearchMatch) {
+      const answer = buildWebsiteSearchResponse(websiteSearchMatch);
+      const responseProducts = websiteSearchMatch.productName
+        ? buildProductCards([websiteSearchMatch.productName], safeQuestion, null)
+        : [];
+
+      logTimmyQuestion({
+        question: safeQuestion,
+        intent: "website_search",
+        questionType: "website_search",
+        products: responseProducts.map(p => p.name),
+        acres: null,
+        region: "unknown",
+        blogIdeas: buildBlogIdeas({
+          question: safeQuestion,
+          intent: "website_search",
+          products: responseProducts.map(p => p.name)
+        })
+      });
+
       return res.status(200).json({
-        answer: buildWebsiteSearchResponse(websiteSearchMatch),
-        products: websiteSearchMatch.productName
-          ? buildProductCards([websiteSearchMatch.productName], safeQuestion, null)
-          : [],
-        blogs: [],
+        answer,
+        products: responseProducts,
+        blogs: buildBlogIdeas({
+          question: safeQuestion,
+          intent: "website_search",
+          products: responseProducts.map(p => p.name)
+        }),
         acres: null
       });
     }
@@ -264,9 +247,18 @@ export default async function handler(req, res) {
 
     const feedQuestion = isFeedQuestion(safeQuestion);
     const plantingQuestion = isPlantingQuestion(safeQuestion);
-    const propertyPlanningQuestion = isPropertyPlanningDeepDive(safeQuestion);
 
-    if (!route.isDomainRelated && !feedQuestion && !plantingQuestion && !propertyPlanningQuestion) {
+    if (!route.isDomainRelated && !feedQuestion && !plantingQuestion) {
+      logTimmyQuestion({
+        question: safeQuestion,
+        intent: "out_of_scope",
+        questionType: "out_of_scope",
+        products: [],
+        acres: null,
+        region: "unknown",
+        blogIdeas: []
+      });
+
       return res.status(200).json({
         answer: buildOutOfScopeReply(safeQuestion),
         products: [],
@@ -288,7 +280,7 @@ export default async function handler(req, res) {
       products = cleanFeedProducts(getFeedProducts(safeQuestion));
     } else if (intent === "fertility") {
       products = inferFertilityProducts(safeQuestion);
-    } else if (intent === "habitat" || propertyPlanningQuestion) {
+    } else if (intent === "habitat") {
       products = getHabitatProducts(safeQuestion);
     } else {
       products = cleanFoodPlotProducts(getFoodPlotProducts(safeQuestion));
@@ -309,21 +301,49 @@ export default async function handler(req, res) {
     ) {
       const productName = route.mentionedProducts[0];
 
+      const productSpecificAnswer = buildProductSpecificAnswer({
+        question: safeQuestion,
+        productName,
+        region,
+        timingText,
+        links: LINKS
+      });
+
+      const answer = addTimmyNextStep({
+        html: productSpecificAnswer,
+        question: safeQuestion,
+        intent: effectiveIntent,
+        products: [productName],
+        acres,
+        region
+      });
+
+      const responseProducts = buildProductCards([productName], safeQuestion, acres);
+      const blogs = buildBlogIdeas({
+        question: safeQuestion,
+        intent: effectiveIntent,
+        products: [productName]
+      });
+
+      logTimmyQuestion({
+        question: safeQuestion,
+        intent: effectiveIntent,
+        questionType: route.questionType,
+        products: [productName],
+        acres,
+        region,
+        blogIdeas: blogs
+      });
+
       return res.status(200).json({
-        answer: buildProductSpecificAnswer({
-          question: safeQuestion,
-          productName,
-          region,
-          timingText,
-          links: LINKS
-        }),
-        products: buildProductCards([productName], safeQuestion, acres),
-        blogs: [],
+        answer,
+        products: responseProducts,
+        blogs,
         acres: acres || null
       });
     }
 
-    let answer = buildAnswer({
+    const answer = buildAnswer({
       question: safeQuestion,
       intent: effectiveIntent,
       products,
@@ -332,19 +352,27 @@ export default async function handler(req, res) {
       timingText
     });
 
-    /*
-      Soft E-Consult escalation.
-      Timmy still helps first. The Property Planner is positioned as the best free next step.
-      The E-Consult is only shown as an optional hands-on path for deeper property-specific questions.
-    */
-    if (propertyPlanningQuestion) {
-      answer += "\n" + buildSoftEConsultNudge();
-    }
+    const responseProducts = buildProductCards(products, safeQuestion, acres);
+    const blogs = buildBlogIdeas({
+      question: safeQuestion,
+      intent: effectiveIntent,
+      products
+    });
+
+    logTimmyQuestion({
+      question: safeQuestion,
+      intent: effectiveIntent,
+      questionType: route.questionType,
+      products,
+      acres,
+      region,
+      blogIdeas: blogs
+    });
 
     return res.status(200).json({
       answer,
-      products: buildProductCards(products, safeQuestion, acres),
-      blogs: [],
+      products: responseProducts,
+      blogs,
       acres: acres || null
     });
   } catch (err) {
@@ -433,12 +461,6 @@ function findWebsiteSearchMatch(question = "") {
 
   if (bestMatch) return bestMatch;
 
-  /*
-    If the user sounds like they are trying to find something on the site,
-    search the full product catalog by product name, handle, tag, and type.
-    This lets Timmy find products like Big Sexy, Recharge, Crank'd, Bad Habit,
-    Stockpile, Dirty Deeds, etc. without treating short searches as trick prompts.
-  */
   if (searchLike) {
     Object.entries(PRODUCT_CATALOG || {}).forEach(([catalogName, product]) => {
       const possibleTerms = [
@@ -447,7 +469,9 @@ function findWebsiteSearchMatch(question = "") {
         product?.title,
         product?.handle,
         product?.tag,
-        product?.type
+        product?.type,
+        product?.category,
+        ...(product?.aliases || [])
       ]
         .filter(Boolean)
         .map(normalizeSearchText)
@@ -479,6 +503,7 @@ function findWebsiteSearchMatch(question = "") {
 }
 
 function getProductFinderDescription(name, product = {}) {
+  if (product.summary) return product.summary;
   if (product.description) return product.description;
   if (product.tag) return product.tag;
   if (product.type) return `A Domain Outdoor ${product.type} product.`;
@@ -494,18 +519,25 @@ function buildWebsiteSearchResponse(match) {
 
   const n = normalizeSearchText(itemName);
 
-  if (n.includes("e consult") || n.includes("e-consult") || n.includes("econsult")) {
+  if (n.includes("soil test") || n.includes("ph test")) {
     extra = `
-<p>Timmy can help with quick food plot, feed, fertilizer, and habitat questions right here. The <a href="${PROPERTY_PLANNER_URL}" target="_blank">Domain Property Planner</a> is the best free next step if you want to start mapping out a plan yourself. The E-Consult is there if you want a real Domain land specialist to personally review the property with you.</p>`;
-  } else if (n.includes("soil test") || n.includes("ph test")) {
-    extra = `
-<p>If you're using those results for a food plot, plug your pH, phosphorus, potassium, and acreage into the <a href="${LINKS.plotEnhancing || "https://domainoutdoor.com/pages/plot-enhancing-app"}" target="_blank">Plot Enhancing App</a> to build a fertility plan.</p>`;
+<p><strong>Recommended Next Step:</strong> After you have your results, plug your pH, phosphorus, potassium, and acreage into the <a href="${LINKS.plotEnhancing || "https://domainoutdoor.com/pages/plot-enhancing-app"}" target="_blank">Plot Enhancing App</a> to build a fertility plan.</p>
+<p><strong>Want Timmy to narrow it down?</strong> Tell me what you’re planting, how many acres, and your soil test numbers when you have them.</p>`;
   } else if (n.includes("planting")) {
     extra = `
-<p>That tool is especially helpful when you already know which seed mix you want to plant and need help narrowing down the best timing.</p>`;
+<p><strong>Recommended Next Step:</strong> Use this when you already know your seed mix and want to narrow down the best planting window.</p>
+<p><strong>Want Timmy to narrow it down?</strong> Tell me your state, seed mix, acres, and planting goal.</p>`;
   } else if (n.includes("plot enhancing") || n.includes("fertility")) {
     extra = `
-<p>Have your soil pH, phosphorus, potassium, and acreage ready for the best recommendation.</p>`;
+<p><strong>Recommended Next Step:</strong> Have your soil pH, phosphorus, potassium, acreage, and crop ready for the best recommendation.</p>
+<p><strong>Want Timmy to narrow it down?</strong> Tell me what you’re planting, your acres, and your soil test numbers.</p>`;
+  } else if (n.includes("dealer")) {
+    extra = `
+<p><strong>Recommended Next Step:</strong> Use the Dealer Locator to find Domain Outdoor products at local retail dealers.</p>
+<p><strong>Want Timmy to narrow it down?</strong> Tell me what product you’re trying to find and your location.</p>`;
+  } else {
+    extra = `
+<p><strong>Recommended Next Step:</strong> View the page above, or ask Timmy how this fits into your property plan.</p>`;
   }
 
   return `
@@ -583,96 +615,10 @@ function isPlantingQuestion(question = "") {
   const hasLandContext = landAndSoilWords.some(word => q.includes(word));
   const hasExplicitFeedIntent = explicitFeedWords.some(word => q.includes(word));
 
-  /*
-    Planting override:
-    If someone says plant/seed/food plot/plot, Timmy should treat it as a seed/food plot question,
-    even if the sentence includes deer, turkey, wildlife, acres, or attraction language.
-    Only keep it in feed when the customer clearly asks for feed/mineral/block/attractant/corn.
-  */
   if (hasStrongPlantingIntent && !hasExplicitFeedIntent) return true;
-
-  /*
-    Land-context fallback:
-    Example: "I need something on 120 acres in Oklahoma clay soil for deer and turkey."
-    Even without the word "plant," acres + soil + wildlife usually means seed/habitat, not feed.
-  */
   if (hasLandContext && !hasExplicitFeedIntent) return true;
 
   return false;
-}
-
-function isPropertyPlanningDeepDive(question = "") {
-  const q = normalizeSearchText(question);
-
-  const deepDiveWords = [
-    "property layout",
-    "whole property",
-    "entire property",
-    "farm layout",
-    "land layout",
-    "map my property",
-    "map out my property",
-    "look at my map",
-    "look at my property",
-    "review my property",
-    "review my land",
-    "onx",
-    "huntstand",
-    "stand placement",
-    "blind placement",
-    "where should i put a stand",
-    "where should i put stands",
-    "where should i put a blind",
-    "where should i put blinds",
-    "where should i put my food plot",
-    "where should i put my food plots",
-    "where do i put a stand",
-    "where do i put stands",
-    "where do i put a blind",
-    "where do i put blinds",
-    "where do i put food plots",
-    "how should i set up my property",
-    "how should i set up my land",
-    "how should i lay out my property",
-    "how should i lay out my land",
-    "entry route",
-    "exit route",
-    "access route",
-    "access routes",
-    "deer movement",
-    "movement plan",
-    "hunting access",
-    "bedding area",
-    "sanctuary",
-    "tsi",
-    "timber stand improvement",
-    "hinge cut",
-    "thermal cover",
-    "complete plan",
-    "full plan",
-    "master plan",
-    "game plan"
-  ];
-
-  const questionHasDeepDivePhrase = deepDiveWords.some(word => q.includes(word));
-
-  const asksForPersonalReview =
-    q.includes("can you help me with my property") ||
-    q.includes("can you help with my property") ||
-    q.includes("can you make me a plan") ||
-    q.includes("can you build me a plan") ||
-    q.includes("i want a plan for my property") ||
-    q.includes("i need a plan for my property") ||
-    q.includes("i need help planning my property");
-
-  return questionHasDeepDivePhrase || asksForPersonalReview;
-}
-
-function buildSoftEConsultNudge() {
-  return `
-<p><strong>Want a more property-specific plan?</strong> Timmy can help point you in the right direction here. For a more complete self-serve layout, the <a href="${PROPERTY_PLANNER_URL}" target="_blank">Domain Property Planner</a> is the best free next step.</p>
-<p>If you want a real person from Domain to personally review your property, food plot layout, stand/blind placement, access, and deer movement strategy, the <a href="${E_CONSULT_URL}" target="_blank">E-Consult program</a> is available as the hands-on option.</p>
-`.trim();
 }
 
 function inferFertilityProducts(question = "") {
@@ -770,43 +716,252 @@ function buildAnswer({
     .map(name => `<strong>${name}</strong>`)
     .join(", ");
 
+  let html = "";
+
   if (!isPlantingQuestion(question) && (intent === "feed" || isFeedQuestion(question))) {
-    return `
+    html = `
 <p><strong>Goal:</strong> It sounds like you’re looking for feed, mineral, or attractant help.</p>
 <p><strong>Best Product Fit:</strong></p>
 ${buildFeedText({ question, products, region })}
 <p><strong>Fertility:</strong> Not needed for feed products.</p>
-<p><strong>Next Step:</strong> Use the <a href="${LINKS.dealerLocator}" target="_blank">Dealer Locator</a> to find Domain feed and mineral products near you.</p>
 `.trim();
+
+    return addTimmyNextStep({
+      html,
+      question,
+      intent: "feed",
+      products,
+      acres,
+      region
+    });
   }
 
   if (intent === "fertility") {
-    return `
+    html = `
 <p><strong>Goal:</strong> It sounds like you’re trying to dial in fertility or improve plot performance.</p>
 <p><strong>Best Product Fit:</strong> I’d start with ${productLine} based on what you asked.</p>
 <p><strong>Timing:</strong> ${timingText}</p>
 <p><strong>Fertility:</strong> ${buildFertilityHtml({ question, productNames: products, acres })}</p>
-<p><strong>Next Step:</strong> Use the <a href="${LINKS.plotEnhancing}" target="_blank">Plot Enhancing App</a> for the most accurate rate based on crop, pH, phosphorus, potassium, and acres.</p>
 `.trim();
+
+    return addTimmyNextStep({
+      html,
+      question,
+      intent: "fertility",
+      products,
+      acres,
+      region
+    });
   }
 
   if (intent === "habitat") {
-    return `
+    html = `
 <p><strong>Goal:</strong> It sounds like you’re trying to create cover, bedding, screening, concealment, or movement control.</p>
 <p><strong>Best Product Fit:</strong> I’d prioritize ${productLine}. These are annual food-and-cover options that can provide seasonal structure, seed-head food value, and wildlife attraction. If you want permanent bedding only, then switchgrass and native grasses become the better fit.</p>
 <p><strong>Timing:</strong> ${timingText}</p>
 <p><strong>Fertility:</strong> For permanent bedding and native grass habitat, focus first on seedbed prep, weed control, timing, and moisture. For Milo, a moderate at-plant fertility pass can help because it acts like a warm-season grain sorghum crop.</p>
-<p><strong>Next Step:</strong> Review the <a href="${LINKS.habitatProducts}" target="_blank">Habitat Products</a> page, or use the <a href="${LINKS.foodPlotSelector}" target="_blank">Food Plot Selector</a> if you also want a nearby food source.</p>
 `.trim();
+
+    return addTimmyNextStep({
+      html,
+      question,
+      intent: "habitat",
+      products,
+      acres,
+      region
+    });
   }
 
-  return `
+  html = `
 <p><strong>Goal:</strong> It sounds like you’re trying to choose the right food plot seed for your property.</p>
 <p><strong>Best Product Fit:</strong> I’d start with ${productLine}. These are strong fits based on the goal and conditions you described.</p>
 <p><strong>Timing:</strong> ${timingText}</p>
 <p><strong>Fertility:</strong> ${buildFertilityHtml({ question, productNames: products, acres })}</p>
-<p><strong>Next Step:</strong> Use the <a href="${LINKS.foodPlotSelector}" target="_blank">Food Plot Selector</a> to refine your seed choice, the <a href="${LINKS.plotEnhancing}" target="_blank">Plot Enhancing App</a> to confirm fertility, and the <a href="${LINKS.plantingDate}" target="_blank">Planting Date Advisor</a> to pick the best window.</p>
 `.trim();
+
+  return addTimmyNextStep({
+    html,
+    question,
+    intent: "food_plot",
+    products,
+    acres,
+    region
+  });
+}
+
+function addTimmyNextStep({
+  html = "",
+  question = "",
+  intent = "food_plot",
+  products = [],
+  acres = null,
+  region = "unknown"
+}) {
+  const nextStep = buildRecommendedNextStep({ question, intent, products, acres, region });
+  const followUp = buildGuidedFollowUp({ question, intent, products, acres, region });
+
+  return `
+${html}
+${nextStep}
+${followUp}
+`.trim();
+}
+
+function buildRecommendedNextStep({
+  intent = "food_plot",
+  products = []
+}) {
+  if (intent === "feed") {
+    return `<p><strong>Recommended Next Step:</strong> Use the <a href="${LINKS.dealerLocator}" target="_blank">Dealer Locator</a> to find Domain feed, mineral, and attractant products near you. Always check local regulations before using feed, mineral, or attractants.</p>`;
+  }
+
+  if (intent === "fertility") {
+    return `<p><strong>Recommended Next Step:</strong> Use the <a href="${LINKS.plotEnhancing}" target="_blank">Plot Enhancing App</a> to dial in the best fertility plan based on crop, pH, phosphorus, potassium, and acres.</p>`;
+  }
+
+  if (intent === "habitat") {
+    return `<p><strong>Recommended Next Step:</strong> Review the <a href="${LINKS.habitatProducts}" target="_blank">Habitat Products</a> page, or use the <a href="${LINKS.propertyPlanner}" target="_blank">Property Planner</a> if you want to connect cover, bedding, food, and movement control.</p>`;
+  }
+
+  if (intent === "timing") {
+    return `<p><strong>Recommended Next Step:</strong> Use the <a href="${LINKS.plantingDate}" target="_blank">Planting Date Advisor</a> to check your ZIP code, seed mix, and planting goal before putting seed in the ground.</p>`;
+  }
+
+  if (products.some(name => PRODUCT_CATALOG[name]?.type === "Soil Test")) {
+    return `<p><strong>Recommended Next Step:</strong> Use your soil test results in the <a href="${LINKS.plotEnhancing}" target="_blank">Plot Enhancing App</a> to build the right fertility plan.</p>`;
+  }
+
+  return `<p><strong>Recommended Next Step:</strong> Use the <a href="${LINKS.foodPlotSelector}" target="_blank">Food Plot Selector</a> to confirm your seed choice, then use the <a href="${LINKS.plantingDate}" target="_blank">Planting Date Advisor</a> to pick the best planting window.</p>`;
+}
+
+function buildGuidedFollowUp({
+  intent = "food_plot",
+  acres = null,
+  region = "unknown"
+}) {
+  if (intent === "feed") {
+    return `<p><strong>Want Timmy to narrow it down?</strong> Tell me if your goal is attraction, mineral support, inventory, post-season recovery, or a longer-lasting feed site.</p>`;
+  }
+
+  if (intent === "fertility") {
+    return `<p><strong>Want Timmy to narrow it down?</strong> Tell me what you’re planting, how many acres, your pH, phosphorus, potassium, and whether the plot is sandy, clay, wet, dry, or low organic matter.</p>`;
+  }
+
+  if (intent === "habitat") {
+    return `<p><strong>Want Timmy to narrow it down?</strong> Tell me if your goal is bedding, screening, access concealment, food-and-cover, waterfowl, upland birds, or movement control.</p>`;
+  }
+
+  const missing = [];
+
+  if (!region || region === "unknown") missing.push("state");
+  if (!acres) missing.push("acres");
+  missing.push("sunlight");
+  missing.push("soil type");
+  missing.push("equipment");
+
+  return `<p><strong>Want Timmy to narrow it down?</strong> Tell me your ${missing.join(", ")}, and whether your goal is a kill plot, perennial plot, fall attraction, poor soil fix, or long-term food source.</p>`;
+}
+
+function buildBlogIdeas({
+  question = "",
+  intent = "food_plot",
+  products = []
+}) {
+  const q = normalizeSearchText(question);
+  const ideas = [];
+
+  if (intent === "fertility" || q.includes("fertilizer") || q.includes("soil test") || q.includes("ph")) {
+    ideas.push({
+      title: "How To Fertilize A Deer Food Plot",
+      angle: "Explains pH, phosphorus, potassium, nitrogen, soil tests, and liquid fertilizer timing."
+    });
+
+    ideas.push({
+      title: "How To Fix A Food Plot That Isn’t Growing",
+      angle: "Covers poor pH, bad timing, no rain, weed pressure, poor seed-to-soil contact, and fertility issues."
+    });
+  }
+
+  if (intent === "feed" || q.includes("feed") || q.includes("mineral") || q.includes("attractant")) {
+    ideas.push({
+      title: "Mineral, Feed, And Attractants For Deer: What’s The Difference?",
+      angle: "Helps customers understand where Recharge, Pre Game, Bad Habit, Stockpile, and Stockpile XL fit."
+    });
+  }
+
+  if (intent === "habitat" || q.includes("screen") || q.includes("bedding") || q.includes("cover")) {
+    ideas.push({
+      title: "Best Screening Seed For Deer Hunting Properties",
+      angle: "Covers screening access routes, stand entry and exit, switchgrass, native grasses, and annual screens."
+    });
+
+    ideas.push({
+      title: "How To Build Better Deer Bedding Cover",
+      angle: "Explains native grasses, switchgrass, security cover, thermal cover, and sanctuary design."
+    });
+  }
+
+  if (q.includes("no till") || q.includes("no-till") || q.includes("no equipment")) {
+    ideas.push({
+      title: "Best Food Plot Seed With No Equipment",
+      angle: "Helps customers understand realistic no-till and minimal-equipment food plot options."
+    });
+  }
+
+  if (q.includes("shade") || q.includes("logging road") || q.includes("woods")) {
+    ideas.push({
+      title: "What To Plant In A Shady Food Plot",
+      angle: "Explains partial shade, logging roads, timber edges, and realistic growth expectations."
+    });
+  }
+
+  products.forEach(productName => {
+    if (PRODUCT_CATALOG[productName]) {
+      ideas.push({
+        title: `${productName} Food Plot Guide`,
+        angle: `Covers when to plant ${productName}, where it works, fertility support, and best use cases.`
+      });
+    }
+  });
+
+  if (!ideas.length) {
+    ideas.push({
+      title: "What Should I Plant For Deer On My Property?",
+      angle: "Main pillar article covering seed choice by goal, region, soil, sunlight, and equipment."
+    });
+
+    ideas.push({
+      title: "When Should I Plant A Deer Food Plot?",
+      angle: "Covers spring, summer, fall, and regional planting windows."
+    });
+  }
+
+  return ideas.slice(0, 3);
+}
+
+function logTimmyQuestion({
+  question,
+  intent,
+  questionType,
+  products = [],
+  acres = null,
+  region = "unknown",
+  blogIdeas = []
+}) {
+  const logPayload = {
+    source: "ask-timmy",
+    event: "timmy_question",
+    timestamp: new Date().toISOString(),
+    question,
+    intent,
+    questionType,
+    products,
+    acres,
+    region,
+    blogIdeas: blogIdeas.map(item => item.title)
+  };
+
+  console.log(JSON.stringify(logPayload));
 }
 
 function buildProductCards(products = [], question = "", acres = null) {
@@ -817,34 +972,10 @@ function buildProductCards(products = [], question = "", acres = null) {
   });
 
   return [...new Set(products)]
-    .map(name => {
-      const normalizedName = normalizeProductName(name);
-
-      if (
-        normalizedName === "Domain Outdoor E-Consult" ||
-        name === "Domain Outdoor E-Consult"
-      ) {
-        return "Domain Outdoor E-Consult";
-      }
-
-      return normalizedName;
-    })
-    .filter(name => PRODUCT_CATALOG[name] || name === "Domain Outdoor E-Consult")
+    .map(normalizeProductName)
+    .filter(name => PRODUCT_CATALOG[name])
     .slice(0, 8)
     .map(name => {
-      if (name === "Domain Outdoor E-Consult") {
-        return {
-          name: "Domain Outdoor E-Consult",
-          type: "Property Planning",
-          tag: "Optional Hands-On Help",
-          handle: "domain-outdoor-e-consult-1",
-          url: E_CONSULT_URL,
-          image: "",
-          coveragePerUnit: 1,
-          recommendedQty: 1
-        };
-      }
-
       const product = PRODUCT_CATALOG[name];
 
       const card = {
@@ -854,8 +985,14 @@ function buildProductCards(products = [], question = "", acres = null) {
         handle: product.handle,
         url: product.url,
         image: product.image || product.imageUrl || product.imageUrlOverride || "",
-        coveragePerUnit: product.coveragePerUnit || 1,
-        recommendedQty: null
+        summary: product.summary || product.description || product.tag || "",
+        bestUseTag: product.tag || product.category || product.type || "",
+        coveragePerUnit: product.coveragePerUnit || null,
+        recommendedQty: null,
+        primaryButtonLabel: "View Product",
+        primaryButtonUrl: product.url,
+        secondaryButtonLabel: getSecondaryButtonLabel(name),
+        secondaryButtonUrl: getSecondaryButtonUrl(name)
       };
 
       if (isLiquid(name) && acres) {
@@ -876,4 +1013,28 @@ function buildProductCards(products = [], question = "", acres = null) {
 
       return card;
     });
+}
+
+function getSecondaryButtonLabel(productName) {
+  const product = PRODUCT_CATALOG[productName];
+
+  if (!product) return "Start Planning";
+  if (product.type === "Liquid") return "Build Fertility Program";
+  if (product.type === "Feed") return "Find A Dealer";
+  if (product.type === "Soil Test") return "Build Fertility Program";
+  if (product.type?.includes("Seed")) return "Check Planting Date";
+
+  return "Start Planning";
+}
+
+function getSecondaryButtonUrl(productName) {
+  const product = PRODUCT_CATALOG[productName];
+
+  if (!product) return LINKS.propertyPlanner;
+  if (product.type === "Liquid") return LINKS.plotEnhancing;
+  if (product.type === "Feed") return LINKS.dealerLocator;
+  if (product.type === "Soil Test") return LINKS.plotEnhancing;
+  if (product.type?.includes("Seed")) return LINKS.plantingDate;
+
+  return LINKS.propertyPlanner;
 }
