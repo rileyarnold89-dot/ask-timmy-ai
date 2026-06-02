@@ -78,121 +78,6 @@ function buildPlanName(plan, fallback) {
   return parts.length ? parts.join(" — ") : fallback;
 }
 
-
-function getObject(value) {
-  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
-}
-
-function firstCleanText(...values) {
-  for (const value of values) {
-    const cleaned = cleanText(value);
-    if (cleaned) return cleaned;
-  }
-  return null;
-}
-
-function buildFoodPlotSelectorAnswers(plan) {
-  const fullPlan = getObject(plan.full_plan);
-  const inputs = getObject(fullPlan.inputs);
-  const existingSelector = getObject(plan.selector_answers || fullPlan.selector_answers || inputs.selector_answers);
-
-  const ph = firstCleanText(
-    existingSelector.ph,
-    existingSelector.soil_ph,
-    existingSelector.soil_ph_range,
-    plan.ph,
-    plan.soil_ph,
-    plan.soil_ph_range,
-    inputs.ph,
-    inputs.soil_ph,
-    inputs.soil_ph_range,
-    inputs.soilPhRange
-  );
-
-  const seedType = firstCleanText(
-    existingSelector.seed_type,
-    existingSelector.seedType,
-    plan.seed_type,
-    plan.seedType,
-    inputs.seed_type,
-    inputs.seedType
-  );
-
-  const soil = firstCleanText(
-    existingSelector.soil,
-    existingSelector.soil_condition,
-    plan.soil_condition,
-    plan.soilCondition,
-    plan.soil,
-    inputs.soil,
-    inputs.soil_condition
-  );
-
-  return {
-    ph,
-    soil_ph: ph,
-    soil_ph_range: ph,
-    equipment: firstCleanText(existingSelector.equipment, plan.equipment, inputs.equipment),
-    goal: firstCleanText(existingSelector.goal, plan.goal, inputs.goal),
-    seed_type: seedType,
-    seedType,
-    sunlight: firstCleanText(existingSelector.sunlight, plan.sunlight, inputs.sunlight),
-    soil,
-    soil_condition: soil
-  };
-}
-
-function buildFoodPlotFullPlan(plan) {
-  const existingFullPlan = getObject(plan.full_plan);
-  const existingInputs = getObject(existingFullPlan.inputs);
-  const selectorAnswers = buildFoodPlotSelectorAnswers(plan);
-
-  return {
-    ...existingFullPlan,
-    ...plan,
-    selector_answers: selectorAnswers,
-    inputs: {
-      ...existingInputs,
-      ph: selectorAnswers.ph,
-      soil_ph: selectorAnswers.soil_ph,
-      soil_ph_range: selectorAnswers.soil_ph_range,
-      equipment: selectorAnswers.equipment,
-      goal: selectorAnswers.goal,
-      seed_type: selectorAnswers.seed_type,
-      seedType: selectorAnswers.seedType,
-      sunlight: selectorAnswers.sunlight,
-      soil: selectorAnswers.soil,
-      soil_condition: selectorAnswers.soil_condition
-    }
-  };
-}
-
-function hydrateFoodPlotPlan(row) {
-  if (!row || typeof row !== "object") return row;
-
-  const fullPlan = buildFoodPlotFullPlan(row.full_plan || row);
-  const selectorAnswers = buildFoodPlotSelectorAnswers(fullPlan);
-
-  return {
-    ...row,
-    ph: selectorAnswers.ph,
-    soil_ph: selectorAnswers.soil_ph,
-    soil_ph_range: selectorAnswers.soil_ph_range,
-    seed_type: selectorAnswers.seed_type,
-    seedType: selectorAnswers.seedType,
-    selector_answers: selectorAnswers,
-    full_plan: fullPlan
-  };
-}
-
-function hydratePlanForResponse(type, row) {
-  if (type === "food_plot" || type === "food_plots") {
-    return hydrateFoodPlotPlan(row);
-  }
-
-  return row;
-}
-
 function mapPropertyPlan(customerId, plan) {
   return {
     shopify_customer_id: customerId,
@@ -263,8 +148,89 @@ function mapFertilityPlan(customerId, plan) {
   };
 }
 
+function getArrayValue(...values) {
+  for (const value of values) {
+    if (Array.isArray(value)) return value;
+  }
+  return [];
+}
+
+function buildPlantingFullPlan(plan) {
+  const latestRecommendation = getObject(plan.latestRecommendation || plan.latest_recommendation);
+  const existingFullPlan = getObject(plan.full_plan);
+
+  const bestDates = getArrayValue(
+    plan.best_dates,
+    plan.bestDates,
+    plan.top_dates,
+    plan.topDates,
+    latestRecommendation.topDates,
+    latestRecommendation.bestDates,
+    existingFullPlan.best_dates,
+    existingFullPlan.bestDates,
+    existingFullPlan.top_dates,
+    existingFullPlan.topDates
+  );
+
+  const weatherNote = firstCleanText(
+    plan.moisture_notes,
+    plan.moistureNotes,
+    plan.weather_note,
+    plan.weatherNote,
+    latestRecommendation.weatherNote,
+    latestRecommendation.weather_note,
+    existingFullPlan.moisture_notes,
+    existingFullPlan.moistureNotes,
+    existingFullPlan.weather_note,
+    existingFullPlan.weatherNote
+  );
+
+  return {
+    ...existingFullPlan,
+    ...plan,
+    best_dates: bestDates,
+    bestDates,
+    top_dates: bestDates,
+    topDates: bestDates,
+    moisture_notes: weatherNote,
+    moistureNotes: weatherNote,
+    weather_note: weatherNote,
+    weatherNote,
+    latestRecommendation: {
+      ...latestRecommendation,
+      topDates: getArrayValue(latestRecommendation.topDates, bestDates),
+      weatherNote: firstCleanText(latestRecommendation.weatherNote, weatherNote)
+    }
+  };
+}
+
+function hydratePlantingPlan(row) {
+  if (!row || typeof row !== "object") return row;
+
+  const fullPlan = buildPlantingFullPlan(row.full_plan || row);
+  const bestDates = getArrayValue(row.best_dates, row.bestDates, row.top_dates, row.topDates, fullPlan.best_dates, fullPlan.bestDates, fullPlan.top_dates, fullPlan.topDates);
+  const moistureNotes = firstCleanText(row.moisture_notes, row.moistureNotes, row.weather_note, row.weatherNote, fullPlan.moisture_notes, fullPlan.moistureNotes, fullPlan.weather_note, fullPlan.weatherNote);
+
+  return {
+    ...row,
+    best_dates: bestDates,
+    bestDates,
+    top_dates: bestDates,
+    topDates: bestDates,
+    moisture_notes: moistureNotes,
+    moistureNotes,
+    weather_note: moistureNotes,
+    weatherNote: moistureNotes,
+    full_plan: fullPlan
+  };
+}
+
 function mapPlantingPlan(customerId, plan) {
   const names = getNameFields(plan);
+  const fullPlan = buildPlantingFullPlan(plan);
+  const latestRecommendation = getObject(plan.latestRecommendation || plan.latest_recommendation || fullPlan.latestRecommendation);
+  const bestDates = getArrayValue(plan.best_dates, plan.bestDates, plan.top_dates, plan.topDates, latestRecommendation.topDates, fullPlan.best_dates, fullPlan.bestDates, fullPlan.top_dates, fullPlan.topDates);
+  const moistureNotes = firstCleanText(plan.moisture_notes, plan.moistureNotes, plan.weather_note, plan.weatherNote, latestRecommendation.weatherNote, fullPlan.moisture_notes, fullPlan.moistureNotes, fullPlan.weather_note, fullPlan.weatherNote);
 
   return {
     shopify_customer_id: customerId,
@@ -272,24 +238,32 @@ function mapPlantingPlan(customerId, plan) {
     property_name: names.property_name,
     plot_name: names.plot_name,
     notes: names.notes,
-    plan_name: buildPlanName(plan, `${plan.product_name || plan.product || "Planting"} Plan`),
-    product_name: cleanText(plan.product_name || plan.product),
-    state: cleanText(plan.state),
-    zip: cleanText(plan.zip),
-    region: cleanText(plan.region),
-    acres: cleanNumber(plan.acres),
-    planting_window: cleanText(plan.planting_window || plan.plantingWindow || plan.window),
-    best_dates: Array.isArray(plan.best_dates) ? plan.best_dates : Array.isArray(plan.bestDates) ? plan.bestDates : [],
-    moisture_notes: cleanText(plan.moisture_notes || plan.moistureNotes),
+    plan_name: buildPlanName(plan, `${plan.product_name || plan.product || plan.crop || latestRecommendation.productName || "Planting"} Plan`),
+    product_name: cleanText(plan.product_name || plan.product || plan.crop || plan.productName || latestRecommendation.productName),
+    state: cleanText(plan.state || fullPlan.state),
+    zip: cleanText(plan.zip || fullPlan.zip),
+    region: cleanText(plan.region || fullPlan.region),
+    acres: cleanNumber(plan.acres || fullPlan.acres),
+    planting_window: cleanText(plan.planting_window || plan.plantingWindow || plan.window || latestRecommendation.plantingWindow || fullPlan.plantingWindow || fullPlan.planting_window),
+    best_dates: bestDates,
+    moisture_notes: moistureNotes,
     timing_score: cleanText(plan.timing_score || plan.timingScore),
-    full_plan: plan
+    full_plan: {
+      ...fullPlan,
+      best_dates: bestDates,
+      bestDates,
+      top_dates: bestDates,
+      topDates: bestDates,
+      moisture_notes: moistureNotes,
+      moistureNotes,
+      weather_note: moistureNotes,
+      weatherNote: moistureNotes
+    }
   };
 }
 
 function mapFoodPlotPlan(customerId, plan) {
   const names = getNameFields(plan);
-  const fullPlan = buildFoodPlotFullPlan(plan);
-  const selectorAnswers = fullPlan.selector_answers || {};
 
   return {
     shopify_customer_id: customerId,
@@ -298,15 +272,15 @@ function mapFoodPlotPlan(customerId, plan) {
     plot_name: names.plot_name,
     notes: names.notes,
     plan_name: buildPlanName(plan, "Food Plot Plan"),
-    goal: cleanText(plan.goal || selectorAnswers.goal),
+    goal: cleanText(plan.goal),
     state: cleanText(plan.state),
     zip: cleanText(plan.zip),
     acres: cleanNumber(plan.acres),
-    soil_condition: cleanText(plan.soil_condition || plan.soilCondition || plan.soil || selectorAnswers.soil_condition),
-    sunlight: cleanText(plan.sunlight || selectorAnswers.sunlight),
-    equipment: cleanText(plan.equipment || selectorAnswers.equipment),
+    soil_condition: cleanText(plan.soil_condition || plan.soilCondition || plan.soil),
+    sunlight: cleanText(plan.sunlight),
+    equipment: cleanText(plan.equipment),
     recommendations: Array.isArray(plan.recommendations) ? plan.recommendations : [],
-    full_plan: fullPlan
+    full_plan: plan
   };
 }
 
@@ -347,7 +321,7 @@ async function getAllPlans(customerId) {
       throw new Error(`${table}: ${error.message}`);
     }
 
-    result[type] = type === "food_plot" ? (data || []).map(hydrateFoodPlotPlan) : (data || []);
+    result[type] = data || [];
   }
 
   return result;
@@ -409,7 +383,7 @@ export default async function handler(req, res) {
       return res.status(200).json({
         ok: true,
         type,
-        plans: (data || []).map((row) => hydratePlanForResponse(type, row))
+        plans: data || []
       });
     }
 
@@ -458,7 +432,7 @@ export default async function handler(req, res) {
       return res.status(200).json({
         ok: true,
         type,
-        plan: hydratePlanForResponse(type, data)
+        plan: data
       });
     }
 
