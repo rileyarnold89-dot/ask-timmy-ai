@@ -202,7 +202,8 @@ export default async function handler(req, res) {
         answer: "<p>Ask me about food plots, planting dates, fertilizer, feed, habitat, soil, or finding a Domain dealer.</p>",
         products: [],
         blogs: [],
-        acres: null
+        acres: null,
+        savePayload: null
       });
     }
 
@@ -228,15 +229,27 @@ export default async function handler(req, res) {
         })
       });
 
+      const blogs = buildBlogIdeas({
+        question: safeQuestion,
+        intent: "website_search",
+        products: responseProducts.map(p => p.name)
+      });
+
       return res.status(200).json({
         answer,
         products: responseProducts,
-        blogs: buildBlogIdeas({
+        blogs,
+        acres: null,
+        savePayload: buildTimmySavePayload({
           question: safeQuestion,
+          answer,
           intent: "website_search",
-          products: responseProducts.map(p => p.name)
-        }),
-        acres: null
+          questionType: "website_search",
+          products: responseProducts,
+          blogs,
+          acres: null,
+          region: "unknown"
+        })
       });
     }
 
@@ -259,11 +272,23 @@ export default async function handler(req, res) {
         blogIdeas: []
       });
 
+      const answer = buildOutOfScopeReply(safeQuestion);
+
       return res.status(200).json({
-        answer: buildOutOfScopeReply(safeQuestion),
+        answer,
         products: [],
         blogs: [],
-        acres: null
+        acres: null,
+        savePayload: buildTimmySavePayload({
+          question: safeQuestion,
+          answer,
+          intent: "out_of_scope",
+          questionType: "out_of_scope",
+          products: [],
+          blogs: [],
+          acres: null,
+          region: "unknown"
+        })
       });
     }
 
@@ -339,7 +364,17 @@ export default async function handler(req, res) {
         answer,
         products: responseProducts,
         blogs,
-        acres: acres || null
+        acres: acres || null,
+        savePayload: buildTimmySavePayload({
+          question: safeQuestion,
+          answer,
+          intent: effectiveIntent,
+          questionType: route.questionType,
+          products: responseProducts,
+          blogs,
+          acres: acres || null,
+          region
+        })
       });
     }
 
@@ -373,7 +408,17 @@ export default async function handler(req, res) {
       answer,
       products: responseProducts,
       blogs,
-      acres: acres || null
+      acres: acres || null,
+      savePayload: buildTimmySavePayload({
+        question: safeQuestion,
+        answer,
+        intent: effectiveIntent,
+        questionType: route.questionType,
+        products: responseProducts,
+        blogs,
+        acres: acres || null,
+        region
+      })
     });
   } catch (err) {
     console.error("Timmy API error:", err);
@@ -382,9 +427,88 @@ export default async function handler(req, res) {
       answer: "<p>Timmy hit a rut. Try asking again with your state, acres, and what you’re trying to accomplish.</p>",
       products: [],
       blogs: [],
-      acres: null
+      acres: null,
+      savePayload: null
     });
   }
+}
+
+function buildTimmySavePayload({
+  question = "",
+  answer = "",
+  intent = "food_plot",
+  questionType = "general",
+  products = [],
+  blogs = [],
+  acres = null,
+  region = "unknown"
+}) {
+  const productNames = (products || [])
+    .map(product => typeof product === "string" ? product : product?.name)
+    .filter(Boolean);
+
+  const productLinks = (products || [])
+    .map(product => {
+      if (typeof product === "string") {
+        const catalogProduct = PRODUCT_CATALOG[product];
+        return catalogProduct?.url ? { name: product, url: catalogProduct.url } : null;
+      }
+
+      if (product?.name && product?.url) {
+        return { name: product.name, url: product.url };
+      }
+
+      return null;
+    })
+    .filter(Boolean);
+
+  return {
+    plan_type: "timmy",
+    answer_title: buildTimmyAnswerTitle({ question, intent, productNames }),
+    question,
+    answer,
+    intent,
+    question_type: questionType,
+    products: productNames,
+    product_links: productLinks,
+    blogs: (blogs || []).map(item => ({
+      title: item?.title || "",
+      angle: item?.angle || ""
+    })).filter(item => item.title),
+    acres: acres || null,
+    region: region || "unknown",
+    saved_from: "ask-timmy",
+    saved_at: new Date().toISOString()
+  };
+}
+
+function buildTimmyAnswerTitle({ question = "", intent = "food_plot", productNames = [] }) {
+  if (productNames.length) {
+    return `Timmy Answer: ${productNames.slice(0, 2).join(" + ")}`;
+  }
+
+  const cleanQuestion = String(question || "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (cleanQuestion) {
+    const shortQuestion = cleanQuestion.length > 58
+      ? `${cleanQuestion.slice(0, 58).trim()}...`
+      : cleanQuestion;
+
+    return `Timmy Answer: ${shortQuestion}`;
+  }
+
+  const labels = {
+    food_plot: "Food Plot Help",
+    fertility: "Fertility Help",
+    feed: "Feed Help",
+    habitat: "Habitat Help",
+    website_search: "Website Help",
+    out_of_scope: "General Question"
+  };
+
+  return `Timmy Answer: ${labels[intent] || "Property Help"}`;
 }
 
 function normalizeSearchText(text = "") {
