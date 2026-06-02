@@ -144,93 +144,18 @@ function mapFertilityPlan(customerId, plan) {
     in_season_program: stripHtml(plan.inSeasonHtml || plan.in_season_program || plan.inSeasonText),
     support_program: stripHtml(plan.supportHtml || plan.support_program || plan.supportText),
     products: plan.products || {},
-    full_plan: plan
-  };
-}
-
-function getArrayValue(...values) {
-  for (const value of values) {
-    if (Array.isArray(value)) return value;
-  }
-  return [];
-}
-
-function buildPlantingFullPlan(plan) {
-  const latestRecommendation = getObject(plan.latestRecommendation || plan.latest_recommendation);
-  const existingFullPlan = getObject(plan.full_plan);
-
-  const bestDates = getArrayValue(
-    plan.best_dates,
-    plan.bestDates,
-    plan.top_dates,
-    plan.topDates,
-    latestRecommendation.topDates,
-    latestRecommendation.bestDates,
-    existingFullPlan.best_dates,
-    existingFullPlan.bestDates,
-    existingFullPlan.top_dates,
-    existingFullPlan.topDates
-  );
-
-  const weatherNote = firstCleanText(
-    plan.moisture_notes,
-    plan.moistureNotes,
-    plan.weather_note,
-    plan.weatherNote,
-    latestRecommendation.weatherNote,
-    latestRecommendation.weather_note,
-    existingFullPlan.moisture_notes,
-    existingFullPlan.moistureNotes,
-    existingFullPlan.weather_note,
-    existingFullPlan.weatherNote
-  );
-
-  return {
-    ...existingFullPlan,
-    ...plan,
-    best_dates: bestDates,
-    bestDates,
-    top_dates: bestDates,
-    topDates: bestDates,
-    moisture_notes: weatherNote,
-    moistureNotes: weatherNote,
-    weather_note: weatherNote,
-    weatherNote,
-    latestRecommendation: {
-      ...latestRecommendation,
-      topDates: getArrayValue(latestRecommendation.topDates, bestDates),
-      weatherNote: firstCleanText(latestRecommendation.weatherNote, weatherNote)
+    full_plan: {
+      ...plan,
+      property_key: cleanText(plan.property_key || plan.propertyKey),
+      propertyKey: cleanText(plan.propertyKey || plan.property_key),
+      plot_key: cleanText(plan.plot_key || plan.plotKey),
+      plotKey: cleanText(plan.plotKey || plan.plot_key)
     }
-  };
-}
-
-function hydratePlantingPlan(row) {
-  if (!row || typeof row !== "object") return row;
-
-  const fullPlan = buildPlantingFullPlan(row.full_plan || row);
-  const bestDates = getArrayValue(row.best_dates, row.bestDates, row.top_dates, row.topDates, fullPlan.best_dates, fullPlan.bestDates, fullPlan.top_dates, fullPlan.topDates);
-  const moistureNotes = firstCleanText(row.moisture_notes, row.moistureNotes, row.weather_note, row.weatherNote, fullPlan.moisture_notes, fullPlan.moistureNotes, fullPlan.weather_note, fullPlan.weatherNote);
-
-  return {
-    ...row,
-    best_dates: bestDates,
-    bestDates,
-    top_dates: bestDates,
-    topDates: bestDates,
-    moisture_notes: moistureNotes,
-    moistureNotes,
-    weather_note: moistureNotes,
-    weatherNote: moistureNotes,
-    full_plan: fullPlan
   };
 }
 
 function mapPlantingPlan(customerId, plan) {
   const names = getNameFields(plan);
-  const fullPlan = buildPlantingFullPlan(plan);
-  const latestRecommendation = getObject(plan.latestRecommendation || plan.latest_recommendation || fullPlan.latestRecommendation);
-  const bestDates = getArrayValue(plan.best_dates, plan.bestDates, plan.top_dates, plan.topDates, latestRecommendation.topDates, fullPlan.best_dates, fullPlan.bestDates, fullPlan.top_dates, fullPlan.topDates);
-  const moistureNotes = firstCleanText(plan.moisture_notes, plan.moistureNotes, plan.weather_note, plan.weatherNote, latestRecommendation.weatherNote, fullPlan.moisture_notes, fullPlan.moistureNotes, fullPlan.weather_note, fullPlan.weatherNote);
 
   return {
     shopify_customer_id: customerId,
@@ -238,26 +163,30 @@ function mapPlantingPlan(customerId, plan) {
     property_name: names.property_name,
     plot_name: names.plot_name,
     notes: names.notes,
-    plan_name: buildPlanName(plan, `${plan.product_name || plan.product || plan.crop || latestRecommendation.productName || "Planting"} Plan`),
-    product_name: cleanText(plan.product_name || plan.product || plan.crop || plan.productName || latestRecommendation.productName),
-    state: cleanText(plan.state || fullPlan.state),
-    zip: cleanText(plan.zip || fullPlan.zip),
-    region: cleanText(plan.region || fullPlan.region),
-    acres: cleanNumber(plan.acres || fullPlan.acres),
-    planting_window: cleanText(plan.planting_window || plan.plantingWindow || plan.window || latestRecommendation.plantingWindow || fullPlan.plantingWindow || fullPlan.planting_window),
-    best_dates: bestDates,
-    moisture_notes: moistureNotes,
+    plan_name: buildPlanName(plan, `${plan.product_name || plan.product || "Planting"} Plan`),
+    product_name: cleanText(plan.product_name || plan.product),
+    state: cleanText(plan.state),
+    zip: cleanText(plan.zip),
+    region: cleanText(plan.region),
+    acres: cleanNumber(plan.acres),
+    planting_window: cleanText(plan.planting_window || plan.plantingWindow || plan.window),
+    best_dates: Array.isArray(plan.best_dates) ? plan.best_dates : Array.isArray(plan.bestDates) ? plan.bestDates : Array.isArray(plan.top_dates) ? plan.top_dates : Array.isArray(plan.topDates) ? plan.topDates : [],
+    moisture_notes: cleanText(plan.moisture_notes || plan.moistureNotes || plan.weather_note || plan.weatherNote),
     timing_score: cleanText(plan.timing_score || plan.timingScore),
     full_plan: {
-      ...fullPlan,
-      best_dates: bestDates,
-      bestDates,
-      top_dates: bestDates,
-      topDates: bestDates,
-      moisture_notes: moistureNotes,
-      moistureNotes,
-      weather_note: moistureNotes,
-      weatherNote: moistureNotes
+      ...plan,
+      best_dates: Array.isArray(plan.best_dates) ? plan.best_dates : Array.isArray(plan.bestDates) ? plan.bestDates : Array.isArray(plan.top_dates) ? plan.top_dates : Array.isArray(plan.topDates) ? plan.topDates : [],
+      bestDates: Array.isArray(plan.bestDates) ? plan.bestDates : Array.isArray(plan.best_dates) ? plan.best_dates : Array.isArray(plan.top_dates) ? plan.top_dates : Array.isArray(plan.topDates) ? plan.topDates : [],
+      top_dates: Array.isArray(plan.top_dates) ? plan.top_dates : Array.isArray(plan.best_dates) ? plan.best_dates : Array.isArray(plan.bestDates) ? plan.bestDates : Array.isArray(plan.topDates) ? plan.topDates : [],
+      topDates: Array.isArray(plan.topDates) ? plan.topDates : Array.isArray(plan.best_dates) ? plan.best_dates : Array.isArray(plan.bestDates) ? plan.bestDates : Array.isArray(plan.top_dates) ? plan.top_dates : [],
+      moisture_notes: cleanText(plan.moisture_notes || plan.moistureNotes || plan.weather_note || plan.weatherNote),
+      moistureNotes: cleanText(plan.moistureNotes || plan.moisture_notes || plan.weather_note || plan.weatherNote),
+      weather_note: cleanText(plan.weather_note || plan.moisture_notes || plan.moistureNotes || plan.weatherNote),
+      weatherNote: cleanText(plan.weatherNote || plan.moisture_notes || plan.moistureNotes || plan.weather_note),
+      property_key: cleanText(plan.property_key || plan.propertyKey),
+      propertyKey: cleanText(plan.propertyKey || plan.property_key),
+      plot_key: cleanText(plan.plot_key || plan.plotKey),
+      plotKey: cleanText(plan.plotKey || plan.plot_key)
     }
   };
 }
