@@ -260,8 +260,77 @@ export default async function handler(req, res) {
 
     const feedQuestion = isFeedQuestion(safeQuestion);
     const plantingQuestion = isPlantingQuestion(safeQuestion);
+    const exactProductName = findExactProductMention(safeQuestion);
 
-    if (!route.isDomainRelated && !feedQuestion && !plantingQuestion) {
+    if (exactProductName && shouldAnswerExactProductFirst(safeQuestion, route)) {
+      const exactIntent = getExactProductIntent({
+        question: safeQuestion,
+        productName: exactProductName,
+        route,
+        plantingQuestion,
+        feedQuestion
+      });
+
+      const exactTimingText = buildTimingText({
+        question: safeQuestion,
+        region,
+        intent: exactIntent === "timing" ? "food_plot" : exactIntent,
+        productNames: [exactProductName]
+      });
+
+      const exactProductAnswer = buildProductSpecificAnswer({
+        question: safeQuestion,
+        productName: exactProductName,
+        region,
+        timingText: exactTimingText,
+        links: LINKS
+      });
+
+      const answer = addTimmyNextStep({
+        html: exactProductAnswer,
+        question: safeQuestion,
+        intent: exactIntent,
+        products: [exactProductName],
+        acres,
+        region
+      });
+
+      const responseProducts = buildProductCards([exactProductName], safeQuestion, acres);
+      const blogs = buildBlogIdeas({
+        question: safeQuestion,
+        intent: exactIntent,
+        products: [exactProductName]
+      });
+
+      logTimmyQuestion({
+        question: safeQuestion,
+        intent: exactIntent,
+        questionType: "exact_product",
+        products: [exactProductName],
+        acres,
+        region,
+        blogIdeas: blogs
+      });
+
+      return res.status(200).json({
+        answer,
+        products: responseProducts,
+        blogs,
+        acres: acres || null,
+        savePayload: buildTimmySavePayload({
+          question: safeQuestion,
+          answer,
+          intent: exactIntent,
+          questionType: "exact_product",
+          products: responseProducts,
+          blogs,
+          acres: acres || null,
+          region
+        })
+      });
+    }
+
+    if (!route.isDomainRelated && !feedQuestion && !plantingQuestion && !exactProductName) {
       logTimmyQuestion({
         question: safeQuestion,
         intent: "out_of_scope",
@@ -547,6 +616,142 @@ function isWebsiteSearchQuestion(question = "") {
   return searchTriggers.some(trigger => q.includes(trigger));
 }
 
+
+const PRODUCT_INTENT_WORDS = [
+  "plant", "planting", "planted", "seed", "seeding", "sow", "sowing",
+  "broadcast", "drill", "no till", "no-till", "rate", "depth", "fertilizer",
+  "ph", "soil", "when", "where", "how", "guide", "directions", "instructions",
+  "product", "tell me about", "what is", "find", "link", "buy", "order"
+];
+
+const PRODUCT_ALIAS_OVERRIDES = {
+  Incognito: [
+    "incognito",
+    "in cognito",
+    "concealment screen",
+    "concealment mix",
+    "access screen",
+    "access screening",
+    "blind screen",
+    "plot screen",
+    "food plot screen",
+    "screening seed",
+    "screening mix",
+    "annual screen",
+    "annual screening",
+    "egyptian wheat",
+    "sorghum screen",
+    "sorghum screening",
+    "hide access",
+    "hide my access"
+  ]
+};
+
+function hasNormalizedPhrase(haystack = "", needle = "") {
+  const q = ` ${normalizeSearchText(haystack)} `;
+  const term = normalizeSearchText(needle);
+  if (!term || term.length < 3) return false;
+
+  return q.includes(` ${term} `);
+}
+
+function findExactProductMention(question = "") {
+  const q = normalizeSearchText(question);
+  if (!q) return null;
+
+  const candidates = [];
+
+  Object.entries(PRODUCT_CATALOG || {}).forEach(([catalogName, product]) => {
+    const overrideAliases = PRODUCT_ALIAS_OVERRIDES[catalogName] || [];
+    const possibleTerms = [
+      catalogName,
+      product?.name,
+      product?.title,
+      product?.handle,
+      ...(product?.aliases || []),
+      ...overrideAliases
+    ]
+      .filter(Boolean)
+      .map(normalizeSearchText)
+      .filter(term => term.length >= 3);
+
+    possibleTerms.forEach(term => {
+      if (hasNormalizedPhrase(q, term)) {
+        candidates.push({ name: catalogName, score: term.length });
+      }
+    });
+  });
+
+  candidates.sort((a, b) => b.score - a.score);
+  return candidates[0]?.name || null;
+}
+
+function isExactProductIntentQuestion(question = "") {
+  const q = normalizeSearchText(question);
+  return PRODUCT_INTENT_WORDS.some(word => hasNormalizedPhrase(q, word));
+}
+
+function shouldAnswerExactProductFirst(question = "", route = {}) {
+  const q = normalizeSearchText(question);
+
+  if (route?.mentionedProducts?.length > 0) return true;
+  if (isExactProductIntentQuestion(q)) return true;
+
+  return [
+    "planting guide",
+    "seed rate",
+    "planting rate",
+    "seed depth",
+    "how deep",
+    "when to plant",
+    "when should i plant",
+    "how should i plant",
+    "how do i plant",
+    "product page",
+    "view product"
+  ].some(phrase => q.includes(normalizeSearchText(phrase)));
+}
+
+function getExactProductIntent({
+  question = "",
+  productName = "",
+  route = {},
+  plantingQuestion = false,
+  feedQuestion = false
+}) {
+  const product = PRODUCT_CATALOG[productName] || {};
+  const q = normalizeSearchText(question);
+
+  if (product.type === "Feed" || feedQuestion) return "feed";
+  if (product.type === "Liquid" || product.type === "Soil Test") return "fertility";
+
+  if (
+    route?.questionType === "when_to_plant" ||
+    q.includes("when to plant") ||
+    q.includes("planting date") ||
+    q.includes("planting window")
+  ) {
+    return "timing";
+  }
+
+  if (
+    q.includes("screen") ||
+    q.includes("screening") ||
+    q.includes("conceal") ||
+    q.includes("hide") ||
+    q.includes("access") ||
+    q.includes("bedding") ||
+    q.includes("cover") ||
+    productName === "Incognito"
+  ) {
+    return "habitat";
+  }
+
+  if (plantingQuestion || product.type?.includes("Seed")) return "food_plot";
+
+  return route?.intent || "food_plot";
+}
+
 function findWebsiteSearchMatch(question = "") {
   const q = normalizeSearchText(question);
   if (!q) return null;
@@ -809,12 +1014,16 @@ function getHabitatProducts(question = "") {
   }
 
   if (
+    q.includes("incognito") ||
     q.includes("screen") ||
     q.includes("screening") ||
     q.includes("hide") ||
-    q.includes("concealment")
+    q.includes("concealment") ||
+    q.includes("access") ||
+    q.includes("egyptian wheat") ||
+    q.includes("sorghum")
   ) {
-    return ["RC Big Rock Switchgrass", "RC Sundance Switchgrass", "Big Bluestem"];
+    return ["Incognito", "Milo", "Dirty Bird", "RC Big Rock Switchgrass", "RC Sundance Switchgrass", "Big Bluestem"];
   }
 
   if (
