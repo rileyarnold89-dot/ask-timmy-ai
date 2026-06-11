@@ -199,6 +199,36 @@ async function createAppEvent(body = {}) {
   });
 }
 
+
+async function createTimmyQuestion(body = {}) {
+  const customer = extractCustomer(body, {});
+  const customerRow = await upsertCustomer(customer);
+  const payload = body.payload && typeof body.payload === "object" ? body.payload : body;
+  const products = Array.isArray(body.products) ? body.products : (Array.isArray(payload.products) ? payload.products : []);
+  const blogIdeas = Array.isArray(body.blog_ideas) ? body.blog_ideas : (Array.isArray(body.blogIdeas) ? body.blogIdeas : (Array.isArray(payload.blog_ideas) ? payload.blog_ideas : (Array.isArray(payload.blogIdeas) ? payload.blogIdeas : [])));
+  const row = {
+    customer_id: customerRow?.id || null,
+    source: cleanString(body.source || payload.source || "ask-timmy") || "ask-timmy",
+    app_name: cleanString(body.app_name || payload.app_name || "ask_timmy") || "ask_timmy",
+    event_name: cleanString(body.event_name || body.event || payload.event || "timmy_question_asked") || "timmy_question_asked",
+    question: cleanString(body.question || payload.question) || null,
+    intent: cleanString(body.intent || payload.intent) || null,
+    question_type: cleanString(body.question_type || body.questionType || payload.question_type || payload.questionType) || null,
+    products,
+    acres: body.acres === "" || body.acres === undefined ? (payload.acres === "" || payload.acres === undefined ? null : Number(payload.acres)) : Number(body.acres),
+    region: cleanString(body.region || payload.region) || null,
+    blog_ideas: blogIdeas,
+    payload,
+    created_at: cleanString(body.created_at || body.timestamp || payload.saved_at || payload.timestamp) || new Date().toISOString()
+  };
+  if (!Number.isFinite(row.acres)) row.acres = null;
+  await supabaseFetch("timmy_questions", {
+    method: "POST",
+    headers: { "Prefer": "return=minimal" },
+    body: JSON.stringify(row)
+  });
+}
+
 export default async function handler(req, res) {
   const origin = req.headers.origin;
   if (ALLOWED_ORIGINS.has(origin)) res.setHeader("Access-Control-Allow-Origin", origin);
@@ -229,6 +259,12 @@ export default async function handler(req, res) {
     if (resource === "app-events" || resource === "events") {
       if (req.method !== "POST") return json(res, 405, { ok: false, error: "Use POST for app events." });
       await createAppEvent(req.body || {});
+      return json(res, 200, { ok: true });
+    }
+
+    if (resource === "timmy-questions" || resource === "timmy_questions" || resource === "timmy") {
+      if (req.method !== "POST") return json(res, 405, { ok: false, error: "Use POST for Timmy questions." });
+      await createTimmyQuestion(req.body || {});
       return json(res, 200, { ok: true });
     }
 

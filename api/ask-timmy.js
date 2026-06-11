@@ -260,77 +260,8 @@ export default async function handler(req, res) {
 
     const feedQuestion = isFeedQuestion(safeQuestion);
     const plantingQuestion = isPlantingQuestion(safeQuestion);
-    const exactProductName = findExactProductMention(safeQuestion);
 
-    if (exactProductName && shouldAnswerExactProductFirst(safeQuestion, route)) {
-      const exactIntent = getExactProductIntent({
-        question: safeQuestion,
-        productName: exactProductName,
-        route,
-        plantingQuestion,
-        feedQuestion
-      });
-
-      const exactTimingText = buildTimingText({
-        question: safeQuestion,
-        region,
-        intent: exactIntent === "timing" ? "food_plot" : exactIntent,
-        productNames: [exactProductName]
-      });
-
-      const exactProductAnswer = buildExactProductAnswer({
-        question: safeQuestion,
-        productName: exactProductName,
-        region,
-        timingText: exactTimingText,
-        links: LINKS
-      });
-
-      const answer = addTimmyNextStep({
-        html: exactProductAnswer,
-        question: safeQuestion,
-        intent: exactIntent,
-        products: [exactProductName],
-        acres,
-        region
-      });
-
-      const responseProducts = buildProductCards([exactProductName], safeQuestion, acres);
-      const blogs = buildBlogIdeas({
-        question: safeQuestion,
-        intent: exactIntent,
-        products: [exactProductName]
-      });
-
-      logTimmyQuestion({
-        question: safeQuestion,
-        intent: exactIntent,
-        questionType: "exact_product",
-        products: [exactProductName],
-        acres,
-        region,
-        blogIdeas: blogs
-      });
-
-      return res.status(200).json({
-        answer,
-        products: responseProducts,
-        blogs,
-        acres: acres || null,
-        savePayload: buildTimmySavePayload({
-          question: safeQuestion,
-          answer,
-          intent: exactIntent,
-          questionType: "exact_product",
-          products: responseProducts,
-          blogs,
-          acres: acres || null,
-          region
-        })
-      });
-    }
-
-    if (!route.isDomainRelated && !feedQuestion && !plantingQuestion && !exactProductName) {
+    if (!route.isDomainRelated && !feedQuestion && !plantingQuestion) {
       logTimmyQuestion({
         question: safeQuestion,
         intent: "out_of_scope",
@@ -616,145 +547,6 @@ function isWebsiteSearchQuestion(question = "") {
   return searchTriggers.some(trigger => q.includes(trigger));
 }
 
-
-const PRODUCT_INTENT_WORDS = [
-  "plant", "planting", "planted", "seed", "seeding", "sow", "sowing",
-  "broadcast", "drill", "no till", "no-till", "rate", "depth", "fertilizer",
-  "ph", "soil", "when", "where", "how", "guide", "directions", "instructions",
-  "product", "tell me about", "what is", "find", "link", "buy", "order"
-];
-
-const PRODUCT_ALIAS_OVERRIDES = {
-  Incognito: [
-    "incognito",
-    "in cognito",
-    "concealment screen",
-    "concealment mix",
-    "access screen",
-    "access screening",
-    "blind screen",
-    "plot screen",
-    "food plot screen",
-    "screening seed",
-    "screening mix",
-    "annual screen",
-    "annual screening",
-    "egyptian wheat",
-    "sorghum screen",
-    "sorghum screening",
-    "hide access",
-    "hide my access"
-  ]
-};
-
-function hasNormalizedPhrase(haystack = "", needle = "") {
-  const q = ` ${normalizeSearchText(haystack)} `;
-  const term = normalizeSearchText(needle);
-  if (!term || term.length < 3) return false;
-
-  return q.includes(` ${term} `);
-}
-
-function findExactProductMention(question = "") {
-  const q = normalizeSearchText(question);
-  if (!q) return null;
-
-  const candidates = [];
-
-  Object.entries(PRODUCT_CATALOG || {}).forEach(([catalogName, product]) => {
-    const overrideAliases = PRODUCT_ALIAS_OVERRIDES[catalogName] || [];
-    const possibleTerms = [
-      catalogName,
-      product?.name,
-      product?.title,
-      product?.handle,
-      ...(product?.aliases || []),
-      ...overrideAliases
-    ]
-      .filter(Boolean)
-      .map(normalizeSearchText)
-      .filter(term => term.length >= 3);
-
-    possibleTerms.forEach(term => {
-      if (hasNormalizedPhrase(q, term)) {
-        candidates.push({ name: catalogName, score: term.length });
-      }
-    });
-  });
-
-  candidates.sort((a, b) => b.score - a.score);
-  return candidates[0]?.name || null;
-}
-
-function isExactProductIntentQuestion(question = "") {
-  const q = normalizeSearchText(question);
-  return PRODUCT_INTENT_WORDS.some(word => hasNormalizedPhrase(q, word));
-}
-
-function shouldAnswerExactProductFirst(question = "", route = {}) {
-  const q = normalizeSearchText(question);
-
-  if (route?.mentionedProducts?.length > 0) return true;
-  if (isExactProductIntentQuestion(q)) return true;
-
-  return [
-    "planting guide",
-    "seed rate",
-    "planting rate",
-    "seed depth",
-    "how deep",
-    "when to plant",
-    "when should i plant",
-    "how should i plant",
-    "how do i plant",
-    "product page",
-    "view product"
-  ].some(phrase => q.includes(normalizeSearchText(phrase)));
-}
-
-function getExactProductIntent({
-  question = "",
-  productName = "",
-  route = {},
-  plantingQuestion = false,
-  feedQuestion = false
-}) {
-  const product = PRODUCT_CATALOG[productName] || {};
-  const q = normalizeSearchText(question);
-
-  if (product.type === "Feed" || feedQuestion) return "feed";
-  if (product.type === "Liquid" || product.type === "Soil Test") return "fertility";
-
-  if (
-    route?.questionType === "when_to_plant" ||
-    q.includes("when to plant") ||
-    q.includes("planting date") ||
-    q.includes("planting window")
-  ) {
-    return "timing";
-  }
-
-  if (plantingQuestion || (product.type?.includes("Seed") && isProductPlantingGuideQuestion(question))) {
-    return "food_plot";
-  }
-
-  if (
-    q.includes("screen") ||
-    q.includes("screening") ||
-    q.includes("conceal") ||
-    q.includes("hide") ||
-    q.includes("access") ||
-    q.includes("bedding") ||
-    q.includes("cover")
-  ) {
-    return "habitat";
-  }
-
-  if (product.type?.includes("Seed")) return "food_plot";
-
-  return route?.intent || "food_plot";
-}
-
 function findWebsiteSearchMatch(question = "") {
   const q = normalizeSearchText(question);
   if (!q) return null;
@@ -877,91 +669,6 @@ function buildWebsiteSearchResponse(match) {
 <p><strong>${itemName}</strong><br>${description}</p>
 <p><a href="${itemUrl}" target="_blank">View ${itemName}</a></p>
 ${extra}
-`.trim();
-}
-
-function isProductPlantingGuideQuestion(question = "") {
-  const q = normalizeSearchText(question);
-
-  return [
-    "plant",
-    "planting",
-    "planted",
-    "seed",
-    "seeding",
-    "sow",
-    "sowing",
-    "broadcast",
-    "drill",
-    "rate",
-    "depth",
-    "fertilizer",
-    "ph",
-    "soil",
-    "guide",
-    "directions",
-    "instructions",
-    "how should i plant",
-    "how do i plant",
-    "when should i plant",
-    "when do i plant"
-  ].some(phrase => hasNormalizedPhrase(q, phrase) || q.includes(phrase));
-}
-
-function buildExactProductAnswer({
-  question = "",
-  productName = "",
-  region = "unknown",
-  timingText = "",
-  links = LINKS
-}) {
-  const product = PRODUCT_CATALOG[productName] || {};
-  const guide = product.plantingGuide;
-  const shouldUseGuide = guide && (productName === "Incognito" || isProductPlantingGuideQuestion(question));
-
-  if (!shouldUseGuide) {
-    return buildProductSpecificAnswer({
-      question,
-      productName,
-      region,
-      timingText,
-      links
-    });
-  }
-
-  const regionKey = ["north", "central", "south"].includes(region) ? region : null;
-  const regionPlantingWindow = regionKey && guide.plantingDates
-    ? guide.plantingDates[regionKey]
-    : null;
-
-  const plantingWindows = guide.plantingDates
-    ? `North: ${guide.plantingDates.north || "—"}; Central: ${guide.plantingDates.central || "—"}; South: ${guide.plantingDates.south || "—"}`
-    : timingText;
-
-  const detailRows = [
-    ["Seed Type", guide.seedType],
-    ["Plant Varieties", guide.varieties],
-    ["Best Use", guide.bestUse],
-    ["Location", guide.location],
-    ["pH Range", guide.phRange],
-    ["Soil Type", guide.soilType],
-    ["Tilling / Seedbed", guide.tilling],
-    ["Fertilizer", guide.fertilizer],
-    ["Seed Depth", guide.seedDepth],
-    ["Seed Rate", guide.seedRate],
-    ["Maturity", guide.maturity],
-    ["Expected Height", guide.height]
-  ].filter(([, value]) => value);
-
-  return `
-<p><strong>${productName} is the product you’re looking for.</strong> ${product.summary || "This is a Domain Outdoor product built for the use case you asked about."}</p>
-<p><strong>Best Product Fit:</strong> ${productName}</p>
-<p><strong>Planting Window:</strong> ${regionPlantingWindow ? `${regionPlantingWindow} for your region.` : plantingWindows}</p>
-<ul>
-${detailRows.map(([label, value]) => `<li><strong>${label}:</strong> ${value}</li>`).join("\n")}
-</ul>
-${guide.tip ? `<p><strong>Timmy Tip:</strong> ${guide.tip}</p>` : ""}
-<p><strong>Product Page:</strong> <a href="${product.url || links.propertyPlanner}" target="_blank">View ${productName}</a></p>
 `.trim();
 }
 
@@ -1102,16 +809,12 @@ function getHabitatProducts(question = "") {
   }
 
   if (
-    q.includes("incognito") ||
     q.includes("screen") ||
     q.includes("screening") ||
     q.includes("hide") ||
-    q.includes("concealment") ||
-    q.includes("access") ||
-    q.includes("egyptian wheat") ||
-    q.includes("sorghum")
+    q.includes("concealment")
   ) {
-    return ["Incognito", "Milo", "Dirty Bird", "RC Big Rock Switchgrass", "RC Sundance Switchgrass", "Big Bluestem"];
+    return ["RC Big Rock Switchgrass", "RC Sundance Switchgrass", "Big Bluestem"];
   }
 
   if (
@@ -1176,19 +879,11 @@ ${buildFeedText({ question, products, region })}
   }
 
   if (intent === "habitat") {
-    const hasIncognito = products.includes("Incognito");
-    const habitatFitCopy = hasIncognito
-      ? `For annual screening or access concealment, I’d start with ${productLine}. Incognito should be the first choice when the goal is a fast seasonal screen, plot edge, blind screen, or protected entry/exit route.`
-      : `I’d prioritize ${productLine}. These options can provide seasonal structure, seed-head food value, bedding, screening, concealment, or wildlife attraction depending on your goal.`;
-    const habitatFertilityCopy = hasIncognito
-      ? "For Incognito, focus on full sun, warm soils, good seed-to-soil contact, and moisture. A basic 10-10-10 application at planting and a nitrogen shot after rooting can help maximize height and density."
-      : "For permanent bedding and native grass habitat, focus first on seedbed prep, weed control, timing, and moisture. For Milo, a moderate at-plant fertility pass can help because it acts like a warm-season grain sorghum crop.";
-
     html = `
 <p><strong>Goal:</strong> It sounds like you’re trying to create cover, bedding, screening, concealment, or movement control.</p>
-<p><strong>Best Product Fit:</strong> ${habitatFitCopy}</p>
+<p><strong>Best Product Fit:</strong> I’d prioritize ${productLine}. These are annual food-and-cover options that can provide seasonal structure, seed-head food value, and wildlife attraction. If you want permanent bedding only, then switchgrass and native grasses become the better fit.</p>
 <p><strong>Timing:</strong> ${timingText}</p>
-<p><strong>Fertility:</strong> ${habitatFertilityCopy}</p>
+<p><strong>Fertility:</strong> For permanent bedding and native grass habitat, focus first on seedbed prep, weed control, timing, and moisture. For Milo, a moderate at-plant fertility pass can help because it acts like a warm-season grain sorghum crop.</p>
 `.trim();
 
     return addTimmyNextStep({
@@ -1391,6 +1086,46 @@ function logTimmyQuestion({
   };
 
   console.log(JSON.stringify(logPayload));
+  writeTimmyQuestionToSupabase(logPayload).catch(error => {
+    console.error('Timmy LEVEL 3 log error:', error.message || error);
+  });
+}
+
+async function writeTimmyQuestionToSupabase(logPayload = {}) {
+  const url = String(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');
+  const key = String(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || '');
+  if (!url || !key) return;
+
+  const row = {
+    source: 'ask-timmy',
+    app_name: 'ask_timmy',
+    event_name: 'timmy_question_asked',
+    question: logPayload.question || null,
+    intent: logPayload.intent || null,
+    question_type: logPayload.questionType || logPayload.question_type || null,
+    products: Array.isArray(logPayload.products) ? logPayload.products : [],
+    acres: Number.isFinite(Number(logPayload.acres)) ? Number(logPayload.acres) : null,
+    region: logPayload.region || null,
+    blog_ideas: Array.isArray(logPayload.blogIdeas) ? logPayload.blogIdeas : [],
+    payload: logPayload,
+    created_at: logPayload.timestamp || new Date().toISOString()
+  };
+
+  const response = await fetch(`${url}/rest/v1/timmy_questions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': key,
+      'Authorization': `Bearer ${key}`,
+      'Prefer': 'return=minimal'
+    },
+    body: JSON.stringify(row)
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '');
+    throw new Error(`Supabase Timmy log failed ${response.status}: ${text || response.statusText}`);
+  }
 }
 
 function buildProductCards(products = [], question = "", acres = null) {
