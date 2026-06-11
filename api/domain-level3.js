@@ -209,8 +209,34 @@ async function listSavedTimmyAnswers(query = {}) {
 
   return (rows || [])
     .filter(row => {
-      const rowEmail = cleanString(row.customer_email || row.email || row.customerEmail).toLowerCase();
-      const rowShopifyId = cleanString(row.shopify_customer_id || row.customer_id || row.shopifyCustomerId);
+      const nested = row.plan && typeof row.plan === "object"
+        ? row.plan
+        : (row.payload && typeof row.payload === "object"
+          ? row.payload
+          : (row.answer_payload && typeof row.answer_payload === "object" ? row.answer_payload : {}));
+
+      const nestedCustomer = nested.customer && typeof nested.customer === "object" ? nested.customer : {};
+      const rowEmail = cleanString(
+        row.customer_email ||
+        row.email ||
+        row.customerEmail ||
+        nested.customer_email ||
+        nested.email ||
+        nested.customerEmail ||
+        nestedCustomer.email
+      ).toLowerCase();
+
+      const rowShopifyId = cleanString(
+        row.shopify_customer_id ||
+        row.customer_id ||
+        row.shopifyCustomerId ||
+        nested.shopify_customer_id ||
+        nested.customer_id ||
+        nested.shopifyCustomerId ||
+        nestedCustomer.shopify_customer_id ||
+        nestedCustomer.id
+      );
+
       if (email && rowEmail === email) return true;
       if (shopifyCustomerId && rowShopifyId === shopifyCustomerId) return true;
       return false;
@@ -221,11 +247,13 @@ async function listSavedTimmyAnswers(query = {}) {
 async function listPropertyPlans(query) {
   const type = normalizeDashboardType(query.type || "all");
   const email = cleanString(query.email).toLowerCase();
+  const shopifyCustomerId = cleanString(query.shopify_customer_id || query.customer_id);
   const params = new URLSearchParams();
   params.set("select", "*");
   params.set("order", "created_at.desc");
   params.set("limit", "500");
   if (email) params.set("customer_email", `eq.${email}`);
+  else if (shopifyCustomerId) params.set("shopify_customer_id", `eq.${shopifyCustomerId}`);
   if (type && type !== "all" && type !== "timmy_answers") params.set("type", `eq.${type}`);
 
   const rows = await supabaseFetch(`property_plans?${params.toString()}`, { method: "GET" });
