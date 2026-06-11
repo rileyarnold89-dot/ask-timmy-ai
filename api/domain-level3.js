@@ -128,36 +128,154 @@ async function createPropertyPlan(body, query) {
   return Array.isArray(inserted) ? inserted[0] : inserted;
 }
 
+
+function normalizeDashboardType(type = "") {
+  const clean = cleanString(type || "");
+  if (clean === "timmy" || clean === "timmy_answer" || clean === "saved_timmy_answer") return "timmy_answers";
+  return clean;
+}
+
+function normalizeSavedTimmyAnswerRow(row = {}) {
+  const nested = row.plan && typeof row.plan === "object"
+    ? row.plan
+    : (row.payload && typeof row.payload === "object"
+      ? row.payload
+      : (row.answer_payload && typeof row.answer_payload === "object"
+        ? row.answer_payload
+        : {}));
+
+  const createdAt = cleanString(row.created_at || row.saved_at || nested.created_at || nested.saved_at) || new Date().toISOString();
+  const question = cleanString(row.question || nested.question || nested.prompt || nested.user_question);
+  const title = cleanString(
+    row.answer_title ||
+    row.plan_name ||
+    row.title ||
+    nested.answer_title ||
+    nested.plan_name ||
+    nested.title
+  ) || (question ? `Timmy Answer: ${question.length > 58 ? question.slice(0, 58).trim() + "..." : question}` : "Timmy Answer");
+
+  return {
+    id: row.id ? `saved-timmy-${row.id}` : `saved-timmy-${createdAt}-${title}`,
+    ...nested,
+    type: "timmy_answers",
+    created_at: createdAt,
+    property_name: cleanString(row.property_name || nested.property_name || nested.propertyName || nested.property) || "",
+    plot_name: cleanString(row.plot_name || nested.plot_name || nested.plotName || nested.plot) || "",
+    plan_name: title,
+    answer_title: title,
+    question,
+    answer: row.answer || row.answer_html || row.response || nested.answer || nested.answer_html || nested.response || "",
+    intent: cleanString(row.intent || nested.intent) || "",
+    question_type: cleanString(row.question_type || row.questionType || nested.question_type || nested.questionType) || "",
+    products: Array.isArray(row.products) ? row.products : (Array.isArray(nested.products) ? nested.products : []),
+    product_links: Array.isArray(row.product_links) ? row.product_links : (Array.isArray(nested.product_links) ? nested.product_links : []),
+    notes: cleanString(row.notes || nested.notes) || "",
+    saved_from: cleanString(row.saved_from || nested.saved_from || row.source || nested.source) || "ask-timmy",
+    full_plan: nested && Object.keys(nested).length ? nested : row
+  };
+}
+
+async function listSavedTimmyAnswers(query = {}) {
+  const email = cleanString(query.email).toLowerCase();
+  const shopifyCustomerId = cleanString(query.shopify_customer_id || query.customer_id);
+
+  // Do not return all saved Timmy answers to anonymous/profile-less requests.
+  if (!email && !shopifyCustomerId) return [];
+
+  const params = new URLSearchParams();
+  params.set("select", "*");
+  params.set("order", "created_at.desc");
+  params.set("limit", "500");
+  if (email) params.set("customer_email", `eq.${email}`);
+
+  let rows = [];
+
+  try {
+    rows = await supabaseFetch(`saved_timmy_answers?${params.toString()}`, { method: "GET" });
+  } catch (error) {
+    // Some older saved_timmy_answers tables may not have customer_email or created_at.
+    // Fall back to a broad read and filter server-side inside this trusted Vercel function.
+    try {
+      const fallback = new URLSearchParams();
+      fallback.set("select", "*");
+      fallback.set("limit", "500");
+      rows = await supabaseFetch(`saved_timmy_answers?${fallback.toString()}`, { method: "GET" });
+    } catch (fallbackError) {
+      console.warn("Could not read saved_timmy_answers:", fallbackError.message || fallbackError);
+      return [];
+    }
+  }
+
+  return (rows || [])
+    .filter(row => {
+      const rowEmail = cleanString(row.customer_email || row.email || row.customerEmail).toLowerCase();
+      const rowShopifyId = cleanString(row.shopify_customer_id || row.customer_id || row.shopifyCustomerId);
+      if (email && rowEmail === email) return true;
+      if (shopifyCustomerId && rowShopifyId === shopifyCustomerId) return true;
+      return false;
+    })
+    .map(normalizeSavedTimmyAnswerRow);
+}
+
 async function listPropertyPlans(query) {
-  const type = cleanString(query.type || "all");
+  const type = normalizeDashboardType(query.type || "all");
   const email = cleanString(query.email).toLowerCase();
   const params = new URLSearchParams();
   params.set("select", "*");
   params.set("order", "created_at.desc");
   params.set("limit", "500");
   if (email) params.set("customer_email", `eq.${email}`);
-  if (type && type !== "all") params.set("type", `eq.${type}`);
+  if (type && type !== "all" && type !== "timmy_answers") params.set("type", `eq.${type}`);
 
   const rows = await supabaseFetch(`property_plans?${params.toString()}`, { method: "GET" });
   const grouped = {};
+
   (rows || []).forEach(row => {
+    const normalizedType = normalizeDashboardType(row.type);
     const plan = {
       id: row.id,
       ...(row.plan || {}),
-      type: row.type,
+      type: normalizedType,
       created_at: row.created_at,
       property_name: row.property_name || row.plan?.property_name || row.plan?.propertyName || "",
       plot_name: row.plot_name || row.plan?.plot_name || row.plan?.plotName || "",
-      plan_name: row.plan_name || row.plan?.plan_name || row.plan?.planName || "",
+      plan_name: row.plan_name || row.plan?.plan_name || row.plan?.planName || row.plan?.answer_title || "",
+      answer_title: row.plan?.answer_title || row.plan_name || "",
       product_name: row.product_name || row.plan?.product_name || row.plan?.crop || "",
       acres: row.acres || row.plan?.acres || "",
       state: row.state || row.plan?.state || "",
       zip: row.zip || row.plan?.zip || "",
       full_plan: row.plan?.full_plan || row.plan?.fullPlan || row.plan || {}
     };
-    if (!grouped[row.type]) grouped[row.type] = [];
-    grouped[row.type].push(plan);
+    if (!grouped[normalizedType]) grouped[normalizedType] = [];
+    grouped[normalizedType].push(plan);
   });
+
+  // Profile dashboard compatibility: Timmy's Save This Answer flow may still write to
+  // the existing saved_timmy_answers table. Pull those into the same response so the
+  // Timmy tab and Timmy count work immediately while Option B continues moving toward
+  // property_plans as the unified table.
+  if (type === "all" || type === "timmy_answers") {
+    const timmyAnswers = await listSavedTimmyAnswers(query);
+    if (timmyAnswers.length) {
+      const existing = grouped.timmy_answers || [];
+      const seen = new Set(existing.map(plan => String(plan.id || plan.created_at || JSON.stringify(plan))));
+      timmyAnswers.forEach(plan => {
+        const id = String(plan.id || plan.created_at || JSON.stringify(plan));
+        if (!seen.has(id)) {
+          existing.push(plan);
+          seen.add(id);
+        }
+      });
+      grouped.timmy_answers = existing.sort((a, b) => {
+        const ad = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const bd = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return bd - ad;
+      });
+    }
+  }
+
   return grouped;
 }
 
