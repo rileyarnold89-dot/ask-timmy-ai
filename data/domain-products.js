@@ -198,6 +198,56 @@ export const PRODUCT_CATALOG = {
     summary: "Easy cereal grain with season-long attraction, cold tolerance, and fast fall establishment."
   },
 
+  "Incognito": {
+    type: "Food Plot / Habitat Seed",
+    category: "screening",
+    tag: "Annual Screening",
+    handle: "incognito%E2%84%A2",
+    url: "https://domainoutdoor.com/products/incognito%E2%84%A2?variant=43413529035001",
+    coveragePerUnit: 0.25,
+    summary: "Egyptian wheat and two varieties of sorghum built to create fast-growing concealment, protected access, plot screens, and seasonal visual barriers. Can reach 7–10 feet tall in 80–100 days when planted correctly.",
+    aliases: [
+      "incognito",
+      "in cognito",
+      "concealment screen",
+      "concealment mix",
+      "access screen",
+      "access screening",
+      "blind screen",
+      "plot screen",
+      "food plot screen",
+      "screening seed",
+      "screening mix",
+      "annual screen",
+      "annual screening",
+      "egyptian wheat",
+      "sorghum screen",
+      "sorghum screening",
+      "hide access",
+      "hide my access"
+    ],
+    plantingGuide: {
+      seedType: "Annual",
+      varieties: "Egyptian wheat and two varieties of sorghum",
+      bestUse: "Screening, concealment, protected access routes, stand entry/exit cover, and visual barriers around food plots.",
+      location: "Full sun, open areas, and well-drained soil",
+      phRange: "5.5–7.0",
+      soilType: "Well-drained, dark/rich, sandy, or clay soils",
+      tilling: "Tilled, plowed, disked, or hand-raked soil",
+      fertilizer: "100 lbs. of 10-10-10 per acre at planting. Once rooted, a shot of nitrogen can help maximize height, density, and screening performance.",
+      seedDepth: "1/2 inch or less",
+      seedRate: "13 lbs. per acre",
+      plantingDates: {
+        north: "May–July",
+        central: "May–August",
+        south: "June–September"
+      },
+      maturity: "80–100 days",
+      height: "7–10 feet in good conditions",
+      tip: "Plant Incognito in strips 10 feet wide or wider when possible for the best visual screen. It is a warm-season annual, so wait for warm soil and adequate moisture before planting."
+    }
+  },
+
   "Milo": {
     type: "Food Plot / Habitat Seed",
     category: "warm-season-cover-food",
@@ -471,6 +521,22 @@ export const isFoodPlotSeed = name =>
 // -------------------------------
 export function normalizeProductName(name) {
   const map = {
+    "incognito": "Incognito",
+    "in cognito": "Incognito",
+    "screening seed": "Incognito",
+    "screening mix": "Incognito",
+    "annual screen": "Incognito",
+    "annual screening": "Incognito",
+    "access screen": "Incognito",
+    "access screening": "Incognito",
+    "blind screen": "Incognito",
+    "plot screen": "Incognito",
+    "food plot screen": "Incognito",
+    "concealment screen": "Incognito",
+    "concealment mix": "Incognito",
+    "egyptian wheat": "Incognito",
+    "sorghum screen": "Incognito",
+    "sorghum screening": "Incognito",
     "milo": "Milo",
     "sorghum": "Milo",
     "grain sorghum": "Milo",

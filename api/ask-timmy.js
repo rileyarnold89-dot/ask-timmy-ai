@@ -278,7 +278,7 @@ export default async function handler(req, res) {
         productNames: [exactProductName]
       });
 
-      const exactProductAnswer = buildProductSpecificAnswer({
+      const exactProductAnswer = buildExactProductAnswer({
         question: safeQuestion,
         productName: exactProductName,
         region,
@@ -734,6 +734,10 @@ function getExactProductIntent({
     return "timing";
   }
 
+  if (plantingQuestion || (product.type?.includes("Seed") && isProductPlantingGuideQuestion(question))) {
+    return "food_plot";
+  }
+
   if (
     q.includes("screen") ||
     q.includes("screening") ||
@@ -741,13 +745,12 @@ function getExactProductIntent({
     q.includes("hide") ||
     q.includes("access") ||
     q.includes("bedding") ||
-    q.includes("cover") ||
-    productName === "Incognito"
+    q.includes("cover")
   ) {
     return "habitat";
   }
 
-  if (plantingQuestion || product.type?.includes("Seed")) return "food_plot";
+  if (product.type?.includes("Seed")) return "food_plot";
 
   return route?.intent || "food_plot";
 }
@@ -874,6 +877,91 @@ function buildWebsiteSearchResponse(match) {
 <p><strong>${itemName}</strong><br>${description}</p>
 <p><a href="${itemUrl}" target="_blank">View ${itemName}</a></p>
 ${extra}
+`.trim();
+}
+
+function isProductPlantingGuideQuestion(question = "") {
+  const q = normalizeSearchText(question);
+
+  return [
+    "plant",
+    "planting",
+    "planted",
+    "seed",
+    "seeding",
+    "sow",
+    "sowing",
+    "broadcast",
+    "drill",
+    "rate",
+    "depth",
+    "fertilizer",
+    "ph",
+    "soil",
+    "guide",
+    "directions",
+    "instructions",
+    "how should i plant",
+    "how do i plant",
+    "when should i plant",
+    "when do i plant"
+  ].some(phrase => hasNormalizedPhrase(q, phrase) || q.includes(phrase));
+}
+
+function buildExactProductAnswer({
+  question = "",
+  productName = "",
+  region = "unknown",
+  timingText = "",
+  links = LINKS
+}) {
+  const product = PRODUCT_CATALOG[productName] || {};
+  const guide = product.plantingGuide;
+  const shouldUseGuide = guide && (productName === "Incognito" || isProductPlantingGuideQuestion(question));
+
+  if (!shouldUseGuide) {
+    return buildProductSpecificAnswer({
+      question,
+      productName,
+      region,
+      timingText,
+      links
+    });
+  }
+
+  const regionKey = ["north", "central", "south"].includes(region) ? region : null;
+  const regionPlantingWindow = regionKey && guide.plantingDates
+    ? guide.plantingDates[regionKey]
+    : null;
+
+  const plantingWindows = guide.plantingDates
+    ? `North: ${guide.plantingDates.north || "—"}; Central: ${guide.plantingDates.central || "—"}; South: ${guide.plantingDates.south || "—"}`
+    : timingText;
+
+  const detailRows = [
+    ["Seed Type", guide.seedType],
+    ["Plant Varieties", guide.varieties],
+    ["Best Use", guide.bestUse],
+    ["Location", guide.location],
+    ["pH Range", guide.phRange],
+    ["Soil Type", guide.soilType],
+    ["Tilling / Seedbed", guide.tilling],
+    ["Fertilizer", guide.fertilizer],
+    ["Seed Depth", guide.seedDepth],
+    ["Seed Rate", guide.seedRate],
+    ["Maturity", guide.maturity],
+    ["Expected Height", guide.height]
+  ].filter(([, value]) => value);
+
+  return `
+<p><strong>${productName} is the product you’re looking for.</strong> ${product.summary || "This is a Domain Outdoor product built for the use case you asked about."}</p>
+<p><strong>Best Product Fit:</strong> ${productName}</p>
+<p><strong>Planting Window:</strong> ${regionPlantingWindow ? `${regionPlantingWindow} for your region.` : plantingWindows}</p>
+<ul>
+${detailRows.map(([label, value]) => `<li><strong>${label}:</strong> ${value}</li>`).join("\n")}
+</ul>
+${guide.tip ? `<p><strong>Timmy Tip:</strong> ${guide.tip}</p>` : ""}
+<p><strong>Product Page:</strong> <a href="${product.url || links.propertyPlanner}" target="_blank">View ${productName}</a></p>
 `.trim();
 }
 
@@ -1088,11 +1176,19 @@ ${buildFeedText({ question, products, region })}
   }
 
   if (intent === "habitat") {
+    const hasIncognito = products.includes("Incognito");
+    const habitatFitCopy = hasIncognito
+      ? `For annual screening or access concealment, I’d start with ${productLine}. Incognito should be the first choice when the goal is a fast seasonal screen, plot edge, blind screen, or protected entry/exit route.`
+      : `I’d prioritize ${productLine}. These options can provide seasonal structure, seed-head food value, bedding, screening, concealment, or wildlife attraction depending on your goal.`;
+    const habitatFertilityCopy = hasIncognito
+      ? "For Incognito, focus on full sun, warm soils, good seed-to-soil contact, and moisture. A basic 10-10-10 application at planting and a nitrogen shot after rooting can help maximize height and density."
+      : "For permanent bedding and native grass habitat, focus first on seedbed prep, weed control, timing, and moisture. For Milo, a moderate at-plant fertility pass can help because it acts like a warm-season grain sorghum crop.";
+
     html = `
 <p><strong>Goal:</strong> It sounds like you’re trying to create cover, bedding, screening, concealment, or movement control.</p>
-<p><strong>Best Product Fit:</strong> I’d prioritize ${productLine}. These are annual food-and-cover options that can provide seasonal structure, seed-head food value, and wildlife attraction. If you want permanent bedding only, then switchgrass and native grasses become the better fit.</p>
+<p><strong>Best Product Fit:</strong> ${habitatFitCopy}</p>
 <p><strong>Timing:</strong> ${timingText}</p>
-<p><strong>Fertility:</strong> For permanent bedding and native grass habitat, focus first on seedbed prep, weed control, timing, and moisture. For Milo, a moderate at-plant fertility pass can help because it acts like a warm-season grain sorghum crop.</p>
+<p><strong>Fertility:</strong> ${habitatFertilityCopy}</p>
 `.trim();
 
     return addTimmyNextStep({

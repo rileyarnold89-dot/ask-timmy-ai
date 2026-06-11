@@ -18,6 +18,7 @@ const KEYWORDS = {
   noTill: ["no till","no-till","throw and grow","minimal equipment","hand tools"],
   soil: ["poor soil","bad soil","sandy","organic matter"],
   coverFood: ["cover and food","food and cover","both cover and food"],
+  screen: ["incognito","screen","screening","screening seed","screening mix","annual screen","annual screening","access screen","blind screen","plot screen","concealment","concealment screen","hide access","egyptian wheat","sorghum screen","sorghum screening"],
   milo: ["milo","sorghum","grain sorghum"]
 };
 
@@ -34,7 +35,12 @@ function hasKeyword(msg, group) {
 export function getFoodPlotProducts(question) {
   const msg = question.toLowerCase();
 
-  // ⭐ MILO FIRST — special case
+  // ⭐ INCOGNITO FIRST — exact screening / concealment special case
+  if (hasKeyword(msg, "screen")) {
+    return ["Incognito", "Milo", "Dirty Bird"];
+  }
+
+  // ⭐ MILO FIRST — food + cover special case
   if (hasKeyword(msg, "milo") || hasKeyword(msg, "coverFood")) {
     return ["Milo", "Forage Factory", "3-WAY Grainz"];
   }
@@ -88,6 +94,10 @@ export function cleanFoodPlotProducts(products) {
 // -------------------------------
 export function getFoodPlotWithHabitat(question) {
   const msg = question.toLowerCase();
+
+  if (msg.includes("incognito") || msg.includes("screen") || msg.includes("screening") || msg.includes("concealment") || msg.includes("access screen") || msg.includes("egyptian wheat")) {
+    return ["Incognito", "Milo", "Dirty Bird"];
+  }
 
   if (msg.includes("cover") || msg.includes("bedding")) {
     return ["Milo", "RC Big Rock Switchgrass", "Big Bluestem"];
