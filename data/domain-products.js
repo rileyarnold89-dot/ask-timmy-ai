@@ -38,6 +38,47 @@ export const PRODUCT_CATALOG = {
     summary: "Winter rye, winter wheat, and oats. Fast-growing cereal grain blend for fall and winter attraction. Minimal equipment friendly."
   },
 
+
+  "Barley Legal": {
+    type: "Food Plot Seed",
+    category: "grain",
+    tag: "Late Season Grain Mix",
+    handle: "barley-legal",
+    url: "https://domainoutdoor.com/products/barley-legal?variant=47398429622521",
+    image: "https://domainoutdoor.com/cdn/shop/files/BARLEYLEGAL_web_d2b24485-d620-43e4-94c3-5f555245cf1d_5000x.png?v=1782479210",
+    coveragePerUnit: 0.5,
+    summary: "Premium grain mix for fall attraction. Strong fit for low-input plots, kill plots, sandy soils, lower pH situations, and late-season food where a simple cereal-grain style plot is the goal.",
+    aliases: [
+      "barley legal",
+      "barley",
+      "barley seed",
+      "fall barley",
+      "late season grain",
+      "late season grain mix",
+      "cereal grain mix",
+      "low input fall plot",
+      "barley legal food plot"
+    ],
+    plantingGuide: {
+      seedType: "Annual",
+      bestUse: "Late-season food, fall attraction, low-input plots, kill plots, sandy soils, and lower-pH situations.",
+      location: "Full sun to partial shade",
+      soilType: "Well-drained, sandy, dark/rich, clay, loam, and lower-pH soils",
+      plantingDates: {
+        north: "August–September",
+        central: "August–October",
+        south: "September–November"
+      },
+      soilTemp: {
+        min: 45,
+        ideal: 70,
+        max: 80,
+        category: "CEREAL_GRAIN"
+      },
+      tip: "Barley Legal is a fall-focused cereal grain mix. Do not push it as a spring planting recommendation. In the South, wait until heat begins to break and moisture is available."
+    }
+  },
+
   "Big Sexy": {
     type: "Food Plot Seed",
     category: "brassica",
@@ -412,6 +453,30 @@ Object.assign(PRODUCT_CATALOG, {
     url: "https://domainoutdoor.com/products/dirty-deeds%E2%84%A2-soil-conditioner",
     maxRate: 1
   }
+,
+
+  "Crop Rocket": {
+    type: "Liquid",
+    category: "fertility",
+    tag: "Biological Fertilizer",
+    handle: "crop-rocket-biological-fertilizer",
+    url: "https://domainoutdoor.com/products/crop-rocket-biological-fertilizer?variant=47751249690873",
+    image: "https://domainoutdoor.com/cdn/shop/files/CropRocketSmall_web_5000x.png?v=1782833372",
+    coveragePerUnit: 1,
+    maxRate: 0.25,
+    summary: "Biological fertilizer and soil-support liquid for biological soil activity, rooting, stress tolerance, and stronger food plot performance. Best used with soil-test information and the Plot Enhancing App.",
+    aliases: [
+      "crop rocket",
+      "crop rocket biological fertilizer",
+      "biological fertilizer",
+      "bio fertilizer",
+      "rooting fertilizer",
+      "root growth",
+      "stress tolerance",
+      "soil biology",
+      "soil health liquid"
+    ]
+  }
 });
 
 // -------------------------------
@@ -457,6 +522,43 @@ Object.assign(PRODUCT_CATALOG, {
     tag: "Premium Feed",
     handle: "pre-game",
     url: "https://domainoutdoor.com/products/pre-game"
+  }
+,
+
+  "Pre Game 25LB Block": {
+    type: "Feed",
+    category: "feed",
+    tag: "Premium Feed Block",
+    handle: "pre-game-25lb-deer-feed-block",
+    url: "https://domainoutdoor.com/products/pre-game-25lb-deer-feed-block?variant=47453918298361",
+    image: "https://domainoutdoor.com/cdn/shop/files/PREGAME25LBBLOCK_5000x.png?v=1772117099",
+    summary: "Pre Game 25LB Block is a premium deer feed block for attraction, herd health, and low-maintenance feed sites where feed, bait, minerals, and attractants are legal.",
+    aliases: ["pre game block", "pregame block", "pre-game block", "25 lb block", "25lb block", "pre game 25lb", "pre game 25 lb"]
+  },
+
+  "Pre Game 125LB TUB": {
+    type: "Feed",
+    category: "feed",
+    tag: "Premium Feed Tub",
+    handle: "pre-game-tub-125lb",
+    url: "https://domainoutdoor.com/products/pre-game-tub-125lb?variant=48613014110457",
+    image: "https://domainoutdoor.com/cdn/shop/files/PregameTub125_web_e34d7ba6-cb8c-4214-a8a1-ad66e6fa84aa_5000x.png?v=1782835588",
+    retailerOnly: true,
+    onlineSales: false,
+    summary: "Pre Game 125LB Tub is the large-format Pre Game feed option for longer-lasting feed sites, larger properties, inventory, and attraction. This product should push customers to local retailers and the Domain Outdoor Dealer Locator instead of online checkout.",
+    aliases: ["pre game tub", "pregame tub", "pre-game tub", "pre game 125", "pre game 125lb", "pre game 125 lb", "125lb tub", "125 lb tub", "bulk pre game", "large feed tub"]
+  },
+
+  "Ripple Effect": {
+    type: "Feed",
+    category: "water-hole-additive",
+    customerCategory: "Water Hole Additive",
+    tag: "Water Hole Additive",
+    handle: "ripple-effect-water-hole-solution",
+    url: "https://domainoutdoor.com/products/ripple-effect-water-hole-solution?variant=47751218790649",
+    image: "https://domainoutdoor.com/cdn/shop/files/RippleEffect_web_5000x.png?v=1782832524",
+    summary: "Ripple Effect is a water-hole additive for wildlife water holes, stagnant water sites, mineral-season water use, trail-camera inventory, and improving deer use of water sources where feed, bait, minerals, attractants, and water-hole additives are legal.",
+    aliases: ["ripple effect", "water hole additive", "waterhole additive", "water hole mineral", "waterhole mineral", "water hole solution", "stagnant water", "deer water hole", "wildlife water hole"]
   }
 });
 
@@ -521,6 +623,28 @@ export const isFoodPlotSeed = name =>
 // -------------------------------
 export function normalizeProductName(name) {
   const map = {
+    "barley legal": "Barley Legal",
+    "barley": "Barley Legal",
+    "barley seed": "Barley Legal",
+    "crop rocket": "Crop Rocket",
+    "crop rocket biological fertilizer": "Crop Rocket",
+    "biological fertilizer": "Crop Rocket",
+    "pre game block": "Pre Game 25LB Block",
+    "pregame block": "Pre Game 25LB Block",
+    "pre-game block": "Pre Game 25LB Block",
+    "pre game 25lb": "Pre Game 25LB Block",
+    "pre game 25 lb": "Pre Game 25LB Block",
+    "pre game tub": "Pre Game 125LB TUB",
+    "pregame tub": "Pre Game 125LB TUB",
+    "pre-game tub": "Pre Game 125LB TUB",
+    "pre game 125lb tub": "Pre Game 125LB TUB",
+    "pre game 125 lb tub": "Pre Game 125LB TUB",
+    "125lb tub": "Pre Game 125LB TUB",
+    "125 lb tub": "Pre Game 125LB TUB",
+    "ripple effect": "Ripple Effect",
+    "water hole additive": "Ripple Effect",
+    "waterhole additive": "Ripple Effect",
+    "water hole mineral": "Ripple Effect",
     "incognito": "Incognito",
     "in cognito": "Incognito",
     "screening seed": "Incognito",

@@ -55,6 +55,25 @@ export function getMiloTiming(region) {
 }
 
 // -------------------------------
+// BARLEY LEGAL-SPECIFIC TIMING
+// -------------------------------
+export function getBarleyLegalTiming(region) {
+  if (region === "north") {
+    return "Plant Barley Legal as a fall cereal-grain plot from August through September when moisture is available.";
+  }
+
+  if (region === "central") {
+    return "Plant Barley Legal as a fall cereal-grain plot from August through October, but avoid hot, dry stretches and wait for moisture.";
+  }
+
+  if (region === "south") {
+    return "Plant Barley Legal from September through November. Do not push it into early August heat in the South; wait for cooler conditions and moisture.";
+  }
+
+  return "Plant Barley Legal as a fall cereal-grain plot when soils are cooling, moisture is available, and the forecast is not excessively hot.";
+}
+
+// -------------------------------
 // SOIL TEMP GUIDANCE (OPTIONAL)
 // -------------------------------
 export function getSoilTempHint(productNames = []) {
@@ -68,7 +87,7 @@ export function getSoilTempHint(productNames = []) {
     return "Brassicas establish best around 55–65°F soil temps.";
   }
 
-  if (names.includes("grain") || names.includes("rye") || names.includes("wheat")) {
+  if (names.includes("barley legal") || names.includes("barley") || names.includes("grain") || names.includes("rye") || names.includes("wheat")) {
     return "Cereal grains can germinate in cooler soils (~45°F+).";
   }
 
@@ -93,6 +112,11 @@ export function buildTimingText({
   // Milo-specific override
   if (q.includes("milo") || q.includes("sorghum")) {
     return `${getMiloTiming(region)} ${getSoilTempHint(productNames)}`;
+  }
+
+  const names = productNames.join(" ").toLowerCase();
+  if (q.includes("barley legal") || q.includes("barley") || names.includes("barley legal") || names.includes("barley")) {
+    return `${getBarleyLegalTiming(region)} ${getSoilTempHint(productNames)}`;
   }
 
   return `${getGeneralTiming(region, intent)} ${getSoilTempHint(productNames)}`;

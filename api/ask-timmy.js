@@ -154,6 +154,37 @@ const DOMAIN_PRODUCT_SEARCH_ALIASES = {
       "A full soil test option for customers who want pH, phosphorus, potassium, and fertility information before planting."
   },
 
+  cropRocket: {
+    productName: "Crop Rocket",
+    name: "Crop Rocket Biological Fertilizer",
+    keywords: [
+      "crop rocket",
+      "crop rocket biological fertilizer",
+      "biological fertilizer",
+      "soil biology",
+      "root growth fertilizer",
+      "rooting fertilizer"
+    ],
+    url: "https://domainoutdoor.com/products/crop-rocket-biological-fertilizer?variant=47751249690873",
+    description:
+      "A Domain plot-enhancing liquid for biological soil activity, rooting, stress tolerance, and food plot performance."
+  },
+
+  rippleEffect: {
+    productName: "Ripple Effect",
+    name: "Ripple Effect Water Hole Solution",
+    keywords: [
+      "ripple effect",
+      "water hole additive",
+      "waterhole additive",
+      "water hole mineral",
+      "water hole solution"
+    ],
+    url: "https://domainoutdoor.com/products/ripple-effect-water-hole-solution?variant=47751218790649",
+    description:
+      "A water-hole additive for wildlife water holes, stagnant water sites, and improving deer use of water sources where legal."
+  },
+
   instantPhTestKit: {
     productName: "DIY Instant pH Test Kit",
     name: "DIY Instant pH Test Kit",
@@ -732,7 +763,10 @@ function isPlantingQuestion(question = "") {
     "pre game",
     "bad habit",
     "stockpile",
-    "recharge"
+    "recharge",
+    "ripple effect",
+    "water hole",
+    "waterhole"
   ];
 
   const hasStrongPlantingIntent = strongPlantingWords.some(word => q.includes(word));
@@ -787,6 +821,19 @@ function inferFertilityProducts(question = "") {
     q.includes("boost")
   ) {
     products.add("Liquid Courage");
+  }
+
+  if (
+    q.includes("crop rocket") ||
+    q.includes("biological") ||
+    q.includes("soil biology") ||
+    q.includes("root") ||
+    q.includes("rooting") ||
+    q.includes("stress tolerance") ||
+    q.includes("plant health") ||
+    q.includes("soil health")
+  ) {
+    products.add("Crop Rocket");
   }
 
   return [...products];
@@ -1142,21 +1189,22 @@ function buildProductCards(products = [], question = "", acres = null) {
     .map(name => {
       const product = PRODUCT_CATALOG[name];
 
+      const isRetailerOnly = product.retailerOnly || product.onlineSales === false;
       const card = {
         name,
-        type: product.type,
+        type: product.customerCategory || product.type,
         tag: product.tag,
         handle: product.handle,
         url: product.url,
         image: product.image || product.imageUrl || product.imageUrlOverride || "",
         summary: product.summary || product.description || product.tag || "",
-        bestUseTag: product.tag || product.category || product.type || "",
+        bestUseTag: product.tag || product.customerCategory || product.category || product.type || "",
         coveragePerUnit: product.coveragePerUnit || null,
         recommendedQty: null,
-        primaryButtonLabel: "View Product",
-        primaryButtonUrl: product.url,
-        secondaryButtonLabel: getSecondaryButtonLabel(name),
-        secondaryButtonUrl: getSecondaryButtonUrl(name)
+        primaryButtonLabel: isRetailerOnly ? "Find A Dealer" : "View Product",
+        primaryButtonUrl: isRetailerOnly ? LINKS.dealerLocator : product.url,
+        secondaryButtonLabel: isRetailerOnly ? "View Product Info" : getSecondaryButtonLabel(name),
+        secondaryButtonUrl: isRetailerOnly ? product.url : getSecondaryButtonUrl(name)
       };
 
       if (isLiquid(name) && acres) {

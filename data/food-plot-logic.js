@@ -13,13 +13,14 @@ import {
 const KEYWORDS = {
   shade: ["shade","shaded","woods","timber","logging road","partial sun"],
   perennial: ["perennial","long term","long-term","multi year"],
-  fall: ["fall","late season","rut","cold","winter"],
+  fall: ["fall","late season","rut","cold","winter","barley","barley legal","cereal grain"],
   spring: ["spring","summer","protein","nutrition"],
-  noTill: ["no till","no-till","throw and grow","minimal equipment","hand tools"],
+  noTill: ["no till","no-till","throw and grow","minimal equipment","hand tools","low input","low-input"],
   soil: ["poor soil","bad soil","sandy","organic matter"],
   coverFood: ["cover and food","food and cover","both cover and food"],
   screen: ["incognito","screen","screening","screening seed","screening mix","annual screen","annual screening","access screen","blind screen","plot screen","concealment","concealment screen","hide access","egyptian wheat","sorghum screen","sorghum screening"],
-  milo: ["milo","sorghum","grain sorghum"]
+  milo: ["milo","sorghum","grain sorghum"],
+  barley: ["barley","barley legal","cereal grain","late season grain"]
 };
 
 // -------------------------------
@@ -45,6 +46,11 @@ export function getFoodPlotProducts(question) {
     return ["Milo", "Forage Factory", "3-WAY Grainz"];
   }
 
+  // ⭐ BARLEY LEGAL FIRST — fall cereal grain / low-input special case
+  if (hasKeyword(msg, "barley")) {
+    return ["Barley Legal", "3-WAY Grainz", "Winter Rye"];
+  }
+
   // SHADE / TIMBER
   if (hasKeyword(msg, "shade")) {
     return ["Hot Chic", "No BS"];
@@ -57,7 +63,7 @@ export function getFoodPlotProducts(question) {
 
   // FALL / LATE SEASON
   if (hasKeyword(msg, "fall")) {
-    return ["Big Sexy", "Green Machine", "Show Stopper"];
+    return ["Big Sexy", "Green Machine", "Barley Legal"];
   }
 
   // SPRING / SUMMER
@@ -67,7 +73,7 @@ export function getFoodPlotProducts(question) {
 
   // NO-TILL / LOW EQUIPMENT
   if (hasKeyword(msg, "noTill")) {
-    return ["No BS", "3-WAY Grainz", "Forage Factory"];
+    return ["No BS", "Barley Legal", "3-WAY Grainz"];
   }
 
   // POOR SOIL

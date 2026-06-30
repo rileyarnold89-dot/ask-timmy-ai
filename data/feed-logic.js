@@ -20,6 +20,20 @@ const FEED_PRODUCTS = {
     doNotRecommendWhen: "Customer wants mineral-only support or a long-lasting block.",
     catalogName: "Pre Game"
   },
+  "Pre Game 25LB Block": {
+    aliases: ["pre game block", "pregame block", "pre-game block", "25 lb block", "25lb block", "pre game 25lb", "pre game 25 lb"],
+    type: "Feed block",
+    primaryRole: "All-in-one feed block / low-maintenance attraction",
+    bestUses: ["Herd health", "Feed site attraction", "Trail camera inventory", "Low-maintenance feed sites"],
+    packageSizes: ["25 lb block"],
+    pairsWith: ["Pre Game", "Recharge", "Bad Habit"],
+    bestSeason: "Year-round where feed, bait, minerals, and attractants are legal",
+    shortAnswer: "Pre Game 25LB Block is the block-style Pre Game option for attraction, herd health, and simple low-maintenance feed sites.",
+    howToUse: "Use when a customer wants the attraction and feed-site benefits of Pre Game in a block format instead of loose feed.",
+    doNotRecommendWhen: "Customer specifically wants loose feed for a feeder or a water-hole additive.",
+    catalogName: "Pre Game 25LB Block"
+  },
+
   "Bad Habit": {
     aliases: ["bad habit", "badhabit", "corn topper", "topper", "attractant"],
     type: "Attractant",
@@ -72,6 +86,21 @@ const FEED_PRODUCTS = {
     doNotRecommendWhen: "Customer wants loose feed for a feeder.",
     catalogName: "Stockpile XL"
   },
+  "Ripple Effect": {
+    aliases: ["ripple effect", "water hole", "waterhole", "water hole additive", "waterhole additive", "water hole mineral", "waterhole mineral", "water hole solution", "stagnant water", "deer water hole", "wildlife water hole"],
+    type: "Water hole additive",
+    primaryRole: "Water-hole additive / water-site attraction / mineral-season water strategy",
+    bestUses: ["Wildlife water holes", "Stagnant water sites", "Trail camera inventory", "Mineral-season water sites"],
+    packageSizes: ["1 quart"],
+    pairsWith: ["Pre Game", "Recharge", "Food plots near water"],
+    bestSeason: "Spring, summer, dry periods, and inventory periods where legal",
+    shortAnswer: "Ripple Effect is Domain's water-hole additive for improving deer use of water sources and building water-site attraction where legal.",
+    howToUse: "Use in wildlife water holes, mineral-season water sites, and stagnant water sources where feed, bait, minerals, attractants, and water-hole additives are legal.",
+    doNotRecommendWhen: "Customer wants a food plot seed, loose feed, or block instead of a water-site product.",
+    legalityNote: "Always check local wildlife feeding, baiting, mineral, attractant, water-hole, and hunting regulations before use.",
+    catalogName: "Ripple Effect"
+  },
+
   "Pre Game 125lb Tub": {
     aliases: ["pre game tub", "pregame tub", "125lb tub", "125 lb tub", "bulk feed", "large feed tub"],
     type: "Bulk feed",
@@ -83,8 +112,8 @@ const FEED_PRODUCTS = {
     shortAnswer: "Pre Game 125lb Tub is the bulk feed option for customers running a larger feed site or wanting a longer-lasting feed setup with less frequent refilling.",
     howToUse: "Use as a large-format feeding option. Place the tub in feeding areas, inventory sites, or established feed locations. Best for customers who want a longer-lasting feed option with less frequent refilling.",
     doNotRecommendWhen: "Customer wants online direct purchase or a small bag option.",
-    availabilityNotes: "Dealer / retail store item. Product image and online product page coming soon. Direct online purchase may not be available yet.",
-    catalogName: null
+    availabilityNotes: "Dealer / retail store item. This 125LB tub should push customers to the Domain Outdoor Dealer Locator instead of online checkout.",
+    catalogName: "Pre Game 125LB TUB"
   }
 };
 
@@ -92,7 +121,8 @@ const FEED_INTENT_KEYWORDS = [
   "feed", "feeding", "deer feed", "protein", "corn", "bulk feed", "feeder",
   "mineral", "minerals", "recharge", "antler", "health", "nutrition", "vitamin", "recovery",
   "attract", "attractant", "draw", "bring in", "deer traffic", "trail camera", "inventory",
-  "block", "stockpile", "long lasting", "pre game", "bad habit", "125lb", "125 lb", "tub"
+  "block", "stockpile", "long lasting", "pre game", "bad habit", "125lb", "125 lb", "tub",
+  "ripple effect", "water hole", "waterhole", "water hole additive", "waterhole additive", "stagnant water"
 ];
 
 const GOAL_ALIASES = {
@@ -102,7 +132,8 @@ const GOAL_ALIASES = {
   mineral: ["mineral", "recharge", "antler", "spring", "summer"],
   recovery: ["post rut", "post-rut", "recovery", "winter", "stress"],
   block: ["block", "long lasting", "low maintenance", "stockpile"],
-  bulk: ["bulk", "125", "tub", "large feed"]
+  bulk: ["bulk", "125", "tub", "large feed"],
+  water: ["water hole", "waterhole", "water", "ripple", "ripple effect", "stagnant water"]
 };
 
 const STATE_NAMES = [
@@ -166,6 +197,7 @@ function detectSiteUse(question = "") {
 
 function detectGoal(question = "") {
   const q = question.toLowerCase();
+  if (includesAny(q, GOAL_ALIASES.water)) return "Water-hole attraction";
   if (includesAny(q, GOAL_ALIASES.bulk)) return "Bulk feed site";
   if (includesAny(q, GOAL_ALIASES.mineral)) return "Spring/summer mineral support";
   if (includesAny(q, GOAL_ALIASES.recovery)) return "Post-rut recovery";
@@ -178,6 +210,7 @@ function detectGoal(question = "") {
 
 function detectStyle(question = "") {
   const q = question.toLowerCase();
+  if (q.includes("water hole") || q.includes("waterhole") || q.includes("ripple")) return "Water-hole additive";
   if (q.includes("feeder") || q.includes("feeder-ready") || q.includes("feeder ready")) return "Feeder-ready feed";
   if (q.includes("ground")) return "Ground feeding";
   if (q.includes("mineral")) return "Mineral site";
@@ -216,6 +249,7 @@ function productSummaryHtml(name) {
         <li><strong>Pairs with:</strong> ${esc(p.pairsWith.length ? p.pairsWith.join(", ") : "No primary pairing needed")}</li>
       </ul>
       ${p.howToUse ? `<p><strong>How to use:</strong> ${esc(p.howToUse)}</p>` : ""}
+      ${p.legalityNote ? `<p><strong>Legal note:</strong> ${esc(p.legalityNote)}</p>` : ""}
       ${productLink ? `<p><a href="${productLink}" target="_blank">View ${esc(name)}</a></p>` : ""}
       ${!productLink && p.availabilityNotes ? `<p><strong>Availability:</strong> ${esc(p.availabilityNotes)}</p>` : ""}
     </div>
@@ -239,10 +273,11 @@ function selectFeedProductNames(goal = "", style = "") {
   const g = goal.toLowerCase();
   const s = style.toLowerCase();
 
-  if (g.includes("bulk")) return ["Pre Game", "Recharge", "Bad Habit"];
+  if (g.includes("water-hole")) return ["Ripple Effect", "Recharge", "Pre Game"];
+  if (g.includes("bulk")) return ["Pre Game 125lb Tub", "Recharge", "Bad Habit"];
   if (g.includes("mineral") || s.includes("mineral")) return ["Recharge", "Pre Game", "Stockpile"];
   if (g.includes("post-rut") || g.includes("recovery")) return ["Pre Game", "Recharge", "Stockpile"];
-  if (g.includes("block") || g.includes("low-maintenance") || s.includes("block")) return ["Stockpile", "Recharge", "Bad Habit"];
+  if (g.includes("block") || g.includes("low-maintenance") || s.includes("block")) return ["Pre Game 25LB Block", "Stockpile", "Recharge"];
   if (g.includes("fast") || s.includes("attractant") || s.includes("corn topper")) return ["Bad Habit", "Pre Game", "Stockpile"];
   if (g.includes("year-round") || g.includes("nutrition")) return ["Pre Game", "Recharge", "Stockpile"];
   return ["Pre Game", "Recharge", "Bad Habit"];
@@ -330,6 +365,7 @@ function buildFeedProgramHtml({ question = "", state = "", goal = "", siteUse = 
     </ul>
 
     ${detectedGoal.toLowerCase().includes("bulk") ? `<p><strong>Pre Game 125lb Tub note:</strong> ${esc(FEED_PRODUCTS["Pre Game 125lb Tub"].shortAnswer)} ${esc(FEED_PRODUCTS["Pre Game 125lb Tub"].availabilityNotes)}</p>` : ""}
+    ${detectedGoal.toLowerCase().includes("water-hole") ? `<p><strong>Ripple Effect note:</strong> ${esc(FEED_PRODUCTS["Ripple Effect"].shortAnswer)} ${esc(FEED_PRODUCTS["Ripple Effect"].legalityNote)}</p>` : ""}
   `.trim();
 }
 
@@ -341,7 +377,7 @@ function buildProductSpecificHtml(question = "") {
     return `
       <p><strong>Here’s the simple difference:</strong></p>
       ${mentioned.slice(0, 3).map(productSummaryHtml).join("")}
-      <p><strong>Timmy’s take:</strong> If you want a base feed, start with <strong>Pre Game</strong>. If you want mineral support, use <strong>Recharge</strong>. If you want a fast topper or refresher, use <strong>Bad Habit</strong>. If you want longer-lasting attraction, use <strong>Stockpile</strong>.</p>
+      <p><strong>Timmy’s take:</strong> If you want a base feed, start with <strong>Pre Game</strong>. If you want mineral support, use <strong>Recharge</strong>. If you want a fast topper or refresher, use <strong>Bad Habit</strong>. If you want longer-lasting attraction, use <strong>Stockpile</strong>. For water-hole questions, use <strong>Ripple Effect</strong>.</p>
     `.trim();
   }
 

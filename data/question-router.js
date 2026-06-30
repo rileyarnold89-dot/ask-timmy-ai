@@ -12,7 +12,9 @@ const DOMAIN_TERMS = [
   "crankd", "crank'd", "freight", "freight train", "elbow", "elbow grease", "dirty deeds",
   "liquid courage", "bad habit", "stockpile", "stockpile xl", "recharge", "recharge mineral",
   "pre game", "pre-game", "property planner", "food plot selector", "seed selector",
-  "planting date", "planting date advisor", "plot enhancing", "ask timmy", "timmy"
+  "planting date", "planting date advisor", "plot enhancing", "ask timmy", "timmy",
+  "barley legal", "barley", "crop rocket", "biological fertilizer", "ripple effect",
+  "water hole", "waterhole", "water hole additive", "pre game block", "pre game tub", "125lb tub"
 ];
 
 const WEBSITE_SEARCH_TERMS = [
@@ -84,6 +86,7 @@ function looksLikeDomainWebsiteTarget(q = "") {
     "property planner", "food plot selector", "seed selector", "selection chart",
     "planting date", "planting advisor", "plot enhancing", "fertility app",
     "fertilizer calculator", "dealer locator", "dealer", "retailer", "ask timmy", "timmy",
+    "barley legal", "crop rocket", "ripple effect", "water hole additive",
     "seed", "feed", "mineral", "fertilizer", "liquid", "product", "products"
   ];
 
@@ -97,6 +100,7 @@ function looksLikeDomainWebsiteTarget(q = "") {
       product?.tag,
       product?.type,
       product?.category,
+      product?.customerCategory,
       ...(product?.aliases || [])
     ]
       .filter(Boolean)
@@ -145,6 +149,10 @@ function detectQuestionType(q, mentionedProducts) {
     q.includes("elbow grease") ||
     q.includes("dirty deeds") ||
     q.includes("liquid courage") ||
+    q.includes("crop rocket") ||
+    q.includes("biological fertilizer") ||
+    q.includes("soil biology") ||
+    q.includes("rooting") ||
     q.includes("soil test") ||
     q.includes("ph") ||
     q.includes("p h")
@@ -184,7 +192,13 @@ function detectQuestionType(q, mentionedProducts) {
     q.includes("stockpile") ||
     q.includes("recharge") ||
     q.includes("pre game") ||
-    q.includes("pre-game")
+    q.includes("pre-game") ||
+    q.includes("ripple effect") ||
+    q.includes("water hole") ||
+    q.includes("waterhole") ||
+    q.includes("pre game block") ||
+    q.includes("pre game tub") ||
+    q.includes("125lb tub")
   ) {
     return "feed_help";
   }
@@ -234,6 +248,14 @@ function detectIntent(q, questionType, mentionedProducts) {
     return "habitat";
   }
 
+  if (mentionedProducts.some(name => PRODUCT_CATALOG[name]?.type === "Liquid" || PRODUCT_CATALOG[name]?.category === "fertility")) {
+    return "fertility";
+  }
+
+  if (mentionedProducts.some(name => PRODUCT_CATALOG[name]?.type === "Feed" || PRODUCT_CATALOG[name]?.category === "water-hole-additive")) {
+    return "feed";
+  }
+
   return "food";
 }
 
@@ -249,7 +271,8 @@ export function findMentionedProducts(question = "") {
         product?.handle?.replaceAll("-", " "),
         product?.tag,
         product?.category,
-        ...(product?.aliases || [])
+        product?.customerCategory,
+      ...(product?.aliases || [])
       ]
         .filter(Boolean)
         .map(normalizeText)

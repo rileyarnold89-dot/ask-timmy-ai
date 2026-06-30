@@ -10,7 +10,8 @@ const MAX_RATES = {
   freight: 5,
   elbow: 3,
   dirty: 1,
-  courage: 1
+  courage: 1,
+  cropRocket: 0.25
 };
 
 const PAIL_SIZES = {
@@ -18,7 +19,8 @@ const PAIL_SIZES = {
   freight: [5, 2.5, 1],
   elbow: [5, 2.5, 1],
   dirty: [4, 1],
-  courage: [0.5]
+  courage: [0.5],
+  cropRocket: [1, 0.25]
 };
 
 // -------------------------------
@@ -100,6 +102,7 @@ export function buildFertilityProgram({
   let elbow = 0;
   let dirty = 1;
   let courage = 0;
+  let cropRocket = crop === "habitat" ? 0 : 0.25;
 
   // Crop-specific logic
   if (crop === "brassica") {
@@ -128,6 +131,7 @@ export function buildFertilityProgram({
     freight = 0;
     courage = 0;
     dirty = 0;
+    cropRocket = 0;
   }
 
   if (crop === "mixed") {
@@ -177,13 +181,15 @@ export function buildFertilityProgram({
   elbow = cap(elbow, MAX_RATES.elbow);
   dirty = cap(dirty, MAX_RATES.dirty);
   courage = cap(courage, MAX_RATES.courage);
+  cropRocket = cap(cropRocket, MAX_RATES.cropRocket);
 
   const rates = {
     "Crank'd": crank,
     "Freight Train": freight,
     "Elbow Grease": elbow,
     "Dirty Deeds": dirty,
-    "Liquid Courage": courage
+    "Liquid Courage": courage,
+    "Crop Rocket": cropRocket
   };
 
   return Object.fromEntries(
@@ -291,7 +297,7 @@ export function buildFertilityHtml({
   return `
 <ul>${rows}</ul>
 <p><strong>Tank mix:</strong> Elbow Grease must run alone in water. Do not tank-mix it with Crank'd, Freight Train, Dirty Deeds, phosphate, potassium, sulfur/sulfate micros, glyphosate, or Liberty + AMS.</p>
-<p><strong>At-plant pass:</strong> Crank'd + Freight Train + Dirty Deeds usually mix safely together, but jar-test first.</p>
+<p><strong>At-plant pass:</strong> Crank'd + Freight Train + Dirty Deeds + Crop Rocket usually fit the at-plant/support pass, but jar-test first and follow label directions.</p>
 <p><strong>Water carrier:</strong> Use 15–20 gallons of water per acre for Crank'd, Freight Train, and Elbow Grease. Dirty Deeds needs at least 5 gallons total spray solution per acre.</p>
 `.trim();
 }
@@ -313,7 +319,8 @@ function productKey(name) {
     "Freight Train": "freight",
     "Elbow Grease": "elbow",
     "Dirty Deeds": "dirty",
-    "Liquid Courage": "courage"
+    "Liquid Courage": "courage",
+    "Crop Rocket": "cropRocket"
   };
 
   return map[name] || "crank";
